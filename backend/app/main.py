@@ -37,6 +37,11 @@ app.include_router(admin.router)
 app.include_router(chat.router)
 app.include_router(profile.router)
 
-frontend_path = os.path.join(os.path.dirname(__file__), "..", "..", "frontend")
-if os.path.isdir(frontend_path):
-    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
+# Works both locally (../../frontend) and in Docker (/app/frontend)
+for _candidate in [
+    os.path.join(os.path.dirname(__file__), "..", "frontend"),       # Docker: /app/frontend
+    os.path.join(os.path.dirname(__file__), "..", "..", "frontend"),  # local dev
+]:
+    if os.path.isdir(_candidate):
+        app.mount("/", StaticFiles(directory=_candidate, html=True), name="frontend")
+        break

@@ -1,5 +1,5 @@
 app = "fifa-wc-predictor"
-primary_region = "sin"
+primary_region = "bom"
 
 [build]
 
@@ -14,5 +14,3 @@ primary_region = "sin"
   source = "fifa_data"
   destination = "/data"
 
-[env]
-  DATABASE_URL = "sqlite+aiosqlite:////data/fifa.db"
