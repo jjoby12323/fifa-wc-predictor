@@ -1,0 +1,45 @@
+from fastapi import APIRouter, Depends
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db import get_db
+from app.auth import require_user
+from app.models import User, Score, LeaderboardEntry
+
+router = APIRouter()
+
+
+@router.get("/api/leaderboard", response_model=list[LeaderboardEntry])
+async def get_leaderboard(
+    _username: str = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    rows = await db.execute(
+        select(
+            User.username,
+            User.display_name,
+            func.coalesce(func.sum(Score.total), 0).label("total"),
+            func.coalesce(func.sum(Score.base_points), 0).label("base"),
+            func.coalesce(func.sum(Score.streak_bonus), 0).label("streak"),
+            func.coalesce(func.sum(Score.upset_bonus), 0).label("upset"),
+            func.coalesce(func.sum(Score.perfect_round_bonus), 0).label("perfect"),
+        )
+        .outerjoin(Score, Score.user_id == User.id)
+        .group_by(User.id)
+        .order_by(func.coalesce(func.sum(Score.total), 0).desc())
+    )
+    entries = rows.all()
+
+    return [
+        LeaderboardEntry(
+            rank=idx + 1,
+            username=row.username,
+            display_name=row.display_name,
+            total=row.total,
+            base=row.base,
+            streak=row.streak,
+            upset=row.upset,
+            perfect=row.perfect,
+        )
+        for idx, row in enumerate(entries)
+    ]

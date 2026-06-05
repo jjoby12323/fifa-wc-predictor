@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FIFA WC 2026 Predictor</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>⚽ FIFA WC 2026 Predictor</h1>
+    <p id="greeting" class="subtitle"></p>
+    <a href="leaderboard.html" class="nav-link" id="leaderboard-link">View Leaderboard →</a>
+  </header>
+
+  <main id="app">
+    <div id="error-banner" class="error-banner hidden"></div>
+    <div id="loading" class="loading">Loading matches…</div>
+    <div id="matches-container"></div>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    (async () => {
+      const { user, sig } = getAuth();
+      if (!user || !sig) {
+        showError("Invalid link. Please use the personal link you were sent.");
+        document.getElementById("loading").classList.add("hidden");
+        return;
+      }
+      document.getElementById("greeting").textContent = `Hello, ${user}!`;
+      document.getElementById("leaderboard-link").href =
+        `leaderboard.html?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`;
+
+      await loadMatches();
+      setInterval(loadMatches, 60_000);
+    })();
+
+    async function loadMatches() {
+      const { user, sig } = getAuth();
+      let matches;
+      try {
+        matches = await apiFetch(`/api/matches?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`);
+      } catch (err) {
+        showError(err.message);
+        document.getElementById("loading").classList.add("hidden");
+        return;
+      }
+
+      document.getElementById("loading").classList.add("hidden");
+
+      // Group by matchday
+      const byDay = {};
+      for (const m of matches) {
+        (byDay[m.matchday] = byDay[m.matchday] || []).push(m);
+      }
+
+      const container = document.getElementById("matches-container");
+      container.innerHTML = "";
+
+      for (const [day, dayMatches] of Object.entries(byDay)) {
+        const section = document.createElement("section");
+        section.className = "matchday";
+        const firstKickoff = new Date(dayMatches[0].kickoff_utc + "Z");
+        section.innerHTML = `<h2>Matchday ${day} <span class="date">${firstKickoff.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</span></h2>`;
+
+        for (const m of dayMatches) {
+          section.appendChild(renderMatchCard(m, user, sig));
+        }
+        container.appendChild(section);
+      }
+    }
+
+    function renderMatchCard(m, user, sig) {
+      const card = document.createElement("div");
+      card.className = `match-card status-${m.status}`;
+      card.dataset.matchId = m.id;
+
+      const kickoff = new Date(m.kickoff_utc + "Z");
+      const stageLabel = { group: "Group Stage", r16: "Round of 16", qf: "Quarter-Final", sf: "Semi-Final", final: "Final" }[m.stage] || m.stage;
+      const statusLabel = { pending: "Not Open Yet", open: "Voting Open", closed: "Kicked Off", settled: "Settled" }[m.status] || m.status;
+
+      let actionHtml = "";
+      if (m.status === "open" && !m.my_vote) {
+        actionHtml = `
+          <div class="vote-buttons">
+            <button class="btn-vote" onclick="vote(${m.id}, 'team_a', '${user}', '${sig}')">Vote ${escHtml(m.team_a)}</button>
+            <button class="btn-vote" onclick="vote(${m.id}, 'team_b', '${user}', '${sig}')">Vote ${escHtml(m.team_b)}</button>
+          </div>`;
+      } else if (m.my_vote) {
+        const votedFor = m.my_vote === "team_a" ? m.team_a : m.team_b;
+        const indicator = m.correct === true ? " ✓" : m.correct === false ? " ✗" : "";
+        const cls = m.correct === true ? "correct" : m.correct === false ? "wrong" : "";
+        actionHtml = `<div class="voted-badge ${cls}">Your pick: <strong>${escHtml(votedFor)}</strong>${indicator}</div>`;
+      }
+
+      let resultHtml = "";
+      if (m.status === "settled" && m.result) {
+        const winner = m.result === "team_a" ? m.team_a : m.team_b;
+        resultHtml = `<div class="result-badge">Winner: <strong>${escHtml(winner)}</strong></div>`;
+      }
+
+      card.innerHTML = `
+        <div class="match-header">
+          <span class="stage-tag">${stageLabel}</span>
+          <span class="status-tag ${m.status}">${statusLabel}</span>
+        </div>
+        <div class="teams">
+          <span class="team">${escHtml(m.team_a)}</span>
+          <span class="vs">vs</span>
+          <span class="team">${escHtml(m.team_b)}</span>
+        </div>
+        <div class="kickoff">${kickoff.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" })}</div>
+        ${resultHtml}
+        ${actionHtml}
+        <div class="vote-error hidden" id="err-${m.id}"></div>
+      `;
+      return card;
+    }
+
+    async function vote(matchId, prediction, user, sig) {
+      const errEl = document.getElementById(`err-${matchId}`);
+      errEl.classList.add("hidden");
+      try {
+        await apiFetch(`/api/vote?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ match_id: matchId, prediction }),
+        });
+        await loadMatches();
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.remove("hidden");
+      }
+    }
+  </script>
+</body>
+</html>
