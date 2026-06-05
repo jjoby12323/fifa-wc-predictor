@@ -24,16 +24,18 @@ from sqlalchemy import select
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 
 # ── Edit this list before running ─────────────────────────────────────────────
+# Full display names — spaces and capitalisation are fine.
+# The URL slug is auto-derived (lowercased, spaces → hyphens).
 PARTICIPANTS = [
-    {"username": "alice", "display_name": "Alice"},
-    {"username": "bob", "display_name": "Bob"},
-    {"username": "carol", "display_name": "Carol"},
-    {"username": "dave", "display_name": "Dave"},
-    {"username": "eve", "display_name": "Eve"},
-    {"username": "frank", "display_name": "Frank"},
-    {"username": "grace", "display_name": "Grace"},
-    {"username": "henry", "display_name": "Henry"},
-    {"username": "isla", "display_name": "Isla"},
+    "Alice Smith",
+    "Bob Jones",
+    "Carol White",
+    "Dave Brown",
+    "Eve Davis",
+    "Frank Miller",
+    "Grace Wilson",
+    "Henry Moore",
+    "Isla Taylor",
 ]
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -43,17 +45,19 @@ async def generate():
         await conn.run_sync(Base.metadata.create_all)
 
     async with SessionLocal() as db:
-        for p in PARTICIPANTS:
-            existing = await db.execute(select(User).where(User.username == p["username"]))
+        for display_name in PARTICIPANTS:
+            username = display_name.lower().replace(" ", "-")
+            existing = await db.execute(select(User).where(User.username == username))
             if existing.scalar_one_or_none() is None:
-                db.add(User(username=p["username"], display_name=p["display_name"]))
+                db.add(User(username=username, display_name=display_name))
         await db.commit()
 
     print("\nPersonal vote links (share each privately):\n")
-    for p in PARTICIPANTS:
-        sig = make_sig(p["username"])
-        url = f"{BASE_URL}/?user={p['username']}&sig={sig}"
-        print(f"  {p['display_name']:<20}  {url}")
+    for display_name in PARTICIPANTS:
+        username = display_name.lower().replace(" ", "-")
+        sig = make_sig(username)
+        url = f"{BASE_URL}/?user={username}&sig={sig}"
+        print(f"  {display_name:<25}  {url}")
 
     leaderboard_url = f"{BASE_URL}/leaderboard.html"
     print(f"\nLeaderboard (shareable with everyone):\n  {leaderboard_url}\n")
