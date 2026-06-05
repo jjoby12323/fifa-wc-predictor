@@ -9,6 +9,8 @@ A team prediction game for the 2026 FIFA World Cup. Each person gets a signed pe
 - Points: base × stage multiplier + streak bonus + upset bonus + perfect round bonus
 - Tamper-resistant: signed URLs, all scoring server-side, DB-level uniqueness constraints
 - Auto-settles results via football-data.org API (or manual admin override)
+- Chat widget on every page for smack talk
+- Click any name on the leaderboard to view their prediction history
 - Swap-ready frontend: replace `frontend/` with a React app, API contract stays the same
 
 ## Scoring
@@ -36,13 +38,27 @@ pip install -r requirements.txt
 
 ### 2. Configure environment
 
-```bash
-cp .env.example .env
-# Edit .env:
-#   SECRET_KEY   — generate with: python -c "import secrets; print(secrets.token_hex(32))"
-#   ADMIN_KEY    — another random string, keep private
-#   BASE_URL     — http://localhost:8000 for local, your domain in prod
-#   FOOTBALLDATA_API_KEY — register free at https://www.football-data.org/client/register
+Create `backend/.env` with the following variables:
+
+```
+# Generate with: python -c "import secrets; print(secrets.token_hex(32))"
+SECRET_KEY=
+
+# Separate key for /admin/* endpoints — keep private
+ADMIN_KEY=
+
+# http://localhost:8000 for local, your domain in prod
+BASE_URL=http://localhost:8000
+
+# sqlite+aiosqlite:///./fifa.db for local
+# sqlite+aiosqlite:////data/fifa.db for Fly.io
+DATABASE_URL=sqlite+aiosqlite:///./fifa.db
+
+# Register free at https://www.football-data.org/client/register
+FOOTBALLDATA_API_KEY=
+
+# * for local dev, your domain in prod
+ALLOWED_ORIGINS=*
 ```
 
 ### 3. Run migrations
@@ -51,17 +67,23 @@ cp .env.example .env
 alembic upgrade head
 ```
 
-### 4. Seed fixtures
+### 4. Add participants
 
-```bash
-python -m scripts.sync_fixtures
+Create a `participants.txt` file in the project root (it's gitignored — never committed). One full name per line:
+
+```
+Jonathan Joby
+Saral Hemnani
+Akanksha Goel
 ```
 
-### 5. Edit participants and generate links
-
-Open `scripts/generate_links.py`, update the `PARTICIPANTS` list with your team's names, then run:
+### 5. Sync fixtures and generate links
 
 ```bash
+# Pull WC2026 schedule from football-data.org
+python -m scripts.sync_fixtures
+
+# Create users and print one signed URL per person
 python -m scripts.generate_links
 ```
 
@@ -73,86 +95,94 @@ Copy each person's link and send it to them privately (Slack DM, WhatsApp, etc.)
 uvicorn app.main:app --reload
 ```
 
-The vote page is at `http://localhost:8000/?user=NAME&sig=SIG` (use the generated links).  
-The leaderboard is at `http://localhost:8000/leaderboard.html`.
+Vote page: `http://localhost:8000/?user=NAME&sig=SIG` (use the generated links)  
+Leaderboard: `http://localhost:8000/leaderboard.html`
+
+## Resetting
+
+```bash
+# Wipe votes, scores, and match results (keeps users and fixtures)
+python -m scripts.reset
+
+# Wipe everything — re-run sync_fixtures and generate_links after
+python -m scripts.reset --all
+```
 
 ## Deploying to Fly.io (free)
 
 ```bash
 # Install flyctl: https://fly.io/docs/hands-on/install-flyctl/
 fly auth login
-fly launch   # follow prompts, choose a region close to you
+fly launch --no-deploy
 
-# Create a persistent volume for the SQLite database
-fly volumes create fifa_data --size 1
+# Create a persistent volume for SQLite
+fly volumes create fifa_data --size 1 --region sin
 
-# Set secrets (never commit these)
+# Set secrets
 fly secrets set \
-  SECRET_KEY="your_secret" \
-  ADMIN_KEY="your_admin_key" \
+  SECRET_KEY="..." \
+  ADMIN_KEY="..." \
   BASE_URL="https://your-app.fly.dev" \
-  FOOTBALLDATA_API_KEY="your_key"
+  FOOTBALLDATA_API_KEY="..."
 
 fly deploy
 
 # Custom domain
 fly certs add yourdomain.com
-# Then set an A record at your DNS provider pointing to the Fly IP shown by:
-fly certs show yourdomain.com
+# Point an A record to the IP shown by: fly certs show yourdomain.com
 ```
 
-After deploying, run the seed + generate-links scripts with `fly ssh console`:
+After deploying, set up via SSH:
 
 ```bash
+# Upload your participants.txt first
+fly sftp shell
+put participants.txt /app/participants.txt
+exit
+
 fly ssh console
 cd /app
+alembic upgrade head
 python -m scripts.sync_fixtures
 python -m scripts.generate_links
 ```
 
 ## Settling results manually (fallback)
 
-If auto-settle isn't working, you can settle a match manually:
-
 ```bash
+# List match IDs
+curl -H "X-Admin-Key: YOUR_ADMIN_KEY" https://your-app/admin/matches
+
+# Settle a match
 curl -X POST https://your-app/admin/settle \
   -H "X-Admin-Key: YOUR_ADMIN_KEY" \
   -H "Content-Type: application/json" \
   -d '{"match_id": 5, "result": "team_a"}'
-```
 
-To list match IDs:
-
-```bash
-curl -H "X-Admin-Key: YOUR_ADMIN_KEY" https://your-app/admin/matches
+# Reset scores (keeps fixtures)
+curl -X POST https://your-app/admin/reset-scores -H "X-Admin-Key: YOUR_ADMIN_KEY"
 ```
 
 ## Replacing the frontend with React
 
 ```bash
-# 1. Archive the plain HTML frontend
 mv frontend frontend-html
-
-# 2. Scaffold a Vite/React app
 npm create vite@latest frontend -- --template react
-
-# 3. In your React app, set the API base URL:
-#    VITE_API_BASE=https://your-app.fly.dev
-
+# Set VITE_API_BASE=https://your-app.fly.dev in your React app
 # The /api/* endpoints are identical — no backend changes needed.
 ```
 
 ## Forking for your own tournament
 
-1. Register for a free football-data.org key
-2. Update `data/rankings.json` with current FIFA rankings
-3. Edit `PARTICIPANTS` in `scripts/generate_links.py`
-4. Optionally adjust `STAGE_MULTIPLIER` in `app/scoring.py`
+1. Register for a free football-data.org API key
+2. Update `backend/data/rankings.json` with current FIFA rankings
+3. Create your `participants.txt`
+4. Optionally adjust `STAGE_MULTIPLIER` in `backend/app/scoring.py`
 5. Deploy and share links
 
 ## API Reference
 
-All endpoints require `?user=NAME&sig=HMAC` except admin routes.
+All endpoints require `?user=NAME&sig=HMAC` except `/api/chat` (read) and admin routes.
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -160,5 +190,10 @@ All endpoints require `?user=NAME&sig=HMAC` except admin routes.
 | `POST` | `/api/vote` | Submit a prediction |
 | `GET` | `/api/leaderboard` | Ranked scores for all players |
 | `GET` | `/api/me` | Your per-match score breakdown |
+| `GET` | `/api/users/{username}/history` | Any player's prediction history |
+| `GET` | `/api/chat` | Last 50 chat messages (no auth) |
+| `POST` | `/api/chat` | Post a chat message |
 | `POST` | `/admin/settle` | Manually settle a match result |
 | `GET` | `/admin/matches` | List all matches with IDs |
+| `POST` | `/admin/reset-scores` | Wipe votes, scores, results |
+| `POST` | `/admin/reset-all` | Wipe everything |

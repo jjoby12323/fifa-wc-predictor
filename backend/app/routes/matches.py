@@ -49,6 +49,13 @@ async def get_matches(
         correct = None
         if status == "settled" and my_vote is not None:
             correct = my_vote == m.result
+
+        # Underdog = team with higher (worse) FIFA rank number
+        if m.fifa_rank_a != m.fifa_rank_b:
+            underdog = "team_a" if m.fifa_rank_a > m.fifa_rank_b else "team_b"
+        else:
+            underdog = None
+
         out.append(MatchStatus(
             id=m.id,
             match_label=m.match_label,
@@ -62,6 +69,7 @@ async def get_matches(
             result=m.result,
             my_vote=my_vote,
             correct=correct,
+            underdog=underdog,
         ))
     return out
 

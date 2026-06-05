@@ -53,6 +53,33 @@
     <p class="refresh-note" id="refresh-note"></p>
   </main>
 
+  <!-- Profile modal -->
+  <div id="profile-modal" class="modal-backdrop hidden" onclick="closeProfile(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modal-title">Prediction History</h2>
+        <button class="modal-close" onclick="closeProfile()">✕</button>
+      </div>
+      <div id="modal-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Chat widget -->
+  <div id="chat-widget" class="chat-widget">
+    <div class="chat-header" onclick="toggleChat()">
+      💬 Smack Talk <span id="chat-unread" class="chat-unread hidden"></span>
+      <span class="chat-toggle-icon" id="chat-toggle-icon">▲</span>
+    </div>
+    <div class="chat-body" id="chat-body">
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-input-row" id="chat-input-row">
+        <input id="chat-input" class="chat-input" type="text" placeholder="Say something..." maxlength="280" />
+        <button class="chat-send" onclick="sendMessage()">Send</button>
+      </div>
+      <div id="chat-readonly-note" class="chat-readonly hidden">Open your personal link to chat.</div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
   <script>
     (async () => {
@@ -92,7 +119,7 @@
         if (row.username === user) tr.classList.add("me");
         tr.innerHTML = `
           <td class="rank">${row.rank}</td>
-          <td class="name">${escHtml(row.display_name)}</td>
+          <td class="name"><a class="profile-link" onclick="openProfile('${escHtml(row.username)}', '${escHtml(row.display_name)}')">${escHtml(row.display_name)}</a></td>
           <td class="total"><strong>${row.total}</strong></td>
           <td>${row.base}</td>
           <td>${row.streak || "—"}</td>
@@ -128,6 +155,108 @@
       document.getElementById("refresh-note").textContent =
         `Last updated: ${new Date().toLocaleTimeString()}`;
     }
+
+    // ── Profile modal ─────────────────────────────────────────────
+    async function openProfile(username, displayName) {
+      const { user, sig } = getAuth();
+      if (!user || !sig) return;
+      document.getElementById("modal-title").textContent = `${displayName}'s Predictions`;
+      document.getElementById("modal-body").innerHTML = `<div class="loading">Loading…</div>`;
+      document.getElementById("profile-modal").classList.remove("hidden");
+
+      const history = await apiFetch(
+        `/api/users/${encodeURIComponent(username)}/history?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`
+      ).catch(err => { document.getElementById("modal-body").innerHTML = `<p class="error">${err.message}</p>`; return null; });
+      if (!history) return;
+
+      const stageLabel = { group: "Group", r16: "R16", qf: "QF", sf: "SF", final: "Final" };
+      document.getElementById("modal-body").innerHTML = `
+        <table class="breakdown-table">
+          <thead><tr><th>Match</th><th>Stage</th><th>Pick</th><th>Result</th><th>Pts</th></tr></thead>
+          <tbody>
+            ${history.map(r => {
+              const pickLabel = r.prediction ? (r.prediction === "team_a" ? r.match_label.split(" vs ")[0] : r.match_label.split(" vs ")[1]) : "—";
+              const resultClass = r.correct === true ? "correct" : r.correct === false ? "wrong" : "";
+              const resultIcon = r.correct === true ? "✓" : r.correct === false ? "✗" : "—";
+              return `<tr class="${resultClass}">
+                <td>${escHtml(r.match_label)}</td>
+                <td>${stageLabel[r.stage] || r.stage}</td>
+                <td>${escHtml(pickLabel)}</td>
+                <td>${resultIcon}</td>
+                <td>${r.points || "—"}</td>
+              </tr>`;
+            }).join("")}
+          </tbody>
+        </table>`;
+    }
+
+    function closeProfile(e) {
+      if (!e || e.target === document.getElementById("profile-modal")) {
+        document.getElementById("profile-modal").classList.add("hidden");
+      }
+    }
+
+    // ── Chat ──────────────────────────────────────────────────────
+    let chatOpen = false;
+    let lastSeenId = 0;
+
+    async function loadChat() {
+      const msgs = await apiFetch("/api/chat").catch(() => []);
+      renderChat(msgs);
+      if (!chatOpen && msgs.length && msgs[msgs.length - 1].id > lastSeenId) {
+        const unread = document.getElementById("chat-unread");
+        unread.textContent = "●";
+        unread.classList.remove("hidden");
+      }
+    }
+
+    function renderChat(msgs) {
+      const el = document.getElementById("chat-messages");
+      const { user } = getAuth();
+      el.innerHTML = msgs.map(m => `
+        <div class="chat-msg ${m.username === user ? 'mine' : ''}">
+          <span class="chat-name">${escHtml(m.display_name)}</span>
+          <span class="chat-text">${escHtml(m.content)}</span>
+        </div>`).join("");
+      el.scrollTop = el.scrollHeight;
+      if (msgs.length) lastSeenId = msgs[msgs.length - 1].id;
+    }
+
+    function toggleChat() {
+      chatOpen = !chatOpen;
+      document.getElementById("chat-body").style.display = chatOpen ? "flex" : "none";
+      document.getElementById("chat-toggle-icon").textContent = chatOpen ? "▼" : "▲";
+      document.getElementById("chat-unread").classList.add("hidden");
+      if (chatOpen) loadChat();
+    }
+
+    async function sendMessage() {
+      const { user, sig } = getAuth();
+      if (!user || !sig) return;
+      const input = document.getElementById("chat-input");
+      const content = input.value.trim();
+      if (!content) return;
+      input.value = "";
+      await apiFetch(`/api/chat?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      }).catch(() => {});
+      await loadChat();
+    }
+
+    document.getElementById("chat-input")?.addEventListener("keydown", e => {
+      if (e.key === "Enter") sendMessage();
+    });
+
+    const { user: chatUser, sig: chatSig } = getAuth();
+    if (!chatUser || !chatSig) {
+      document.getElementById("chat-input-row").classList.add("hidden");
+      document.getElementById("chat-readonly-note").classList.remove("hidden");
+    }
+
+    loadChat();
+    setInterval(loadChat, 10_000);
   </script>
 </body>
 </html>

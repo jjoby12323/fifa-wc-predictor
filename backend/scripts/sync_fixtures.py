@@ -71,6 +71,12 @@ async def sync():
 
     async with SessionLocal() as db:
         for m in matches_raw:
+            # Skip matches where teams aren't confirmed yet (knockout placeholders)
+            home = (m.get("homeTeam") or {}).get("name")
+            away = (m.get("awayTeam") or {}).get("name")
+            if not home or not away:
+                continue
+
             stage_raw = m.get("stage", "GROUP_STAGE")
             stage = STAGE_MAP.get(stage_raw, "group")
 
@@ -80,8 +86,6 @@ async def sync():
                 matchday_counter[group] = len(matchday_counter) + 1
             matchday = matchday_counter[group]
 
-            home = m["homeTeam"]["name"]
-            away = m["awayTeam"]["name"]
             match_label = f"{home} vs {away}"
 
             kickoff_str = m.get("utcDate", "")

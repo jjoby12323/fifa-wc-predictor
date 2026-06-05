@@ -77,6 +77,35 @@ async def settle_match(
     return {"status": "settled", "match_id": body.match_id, "result": body.result}
 
 
+@router.post("/admin/reset-scores")
+async def reset_scores(
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_admin),
+):
+    """Wipe all votes, scores, and match results. Keeps users and fixtures."""
+    await db.execute(delete(Score))
+    await db.execute(delete(Vote))
+    await db.execute(
+        __import__("sqlalchemy", fromlist=["update"]).update(Match).values(result=None)
+    )
+    await db.commit()
+    return {"status": "reset", "cleared": ["votes", "scores", "match results"]}
+
+
+@router.post("/admin/reset-all")
+async def reset_all(
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_admin),
+):
+    """Nuclear reset — wipes everything including users and fixtures. Re-run seed after this."""
+    await db.execute(delete(Score))
+    await db.execute(delete(Vote))
+    await db.execute(delete(Match))
+    await db.execute(delete(User))
+    await db.commit()
+    return {"status": "reset", "cleared": ["votes", "scores", "matches", "users"]}
+
+
 @router.get("/admin/matches")
 async def list_matches(
     db: AsyncSession = Depends(get_db),

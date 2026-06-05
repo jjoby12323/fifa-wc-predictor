@@ -23,29 +23,31 @@ from sqlalchemy import select
 
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 
-# ── Edit this list before running ─────────────────────────────────────────────
-# Full display names — spaces and capitalisation are fine.
-# The URL slug is auto-derived (lowercased, spaces → hyphens).
-PARTICIPANTS = [
-    "Alice Smith",
-    "Bob Jones",
-    "Carol White",
-    "Dave Brown",
-    "Eve Davis",
-    "Frank Miller",
-    "Grace Wilson",
-    "Henry Moore",
-    "Isla Taylor",
-]
-# ─────────────────────────────────────────────────────────────────────────────
+PARTICIPANTS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "participants.txt")
+
+
+def load_participants() -> list[str]:
+    if not os.path.exists(PARTICIPANTS_FILE):
+        print(f"Error: participants.txt not found at {PARTICIPANTS_FILE}")
+        print("Create it with one full name per line, e.g.:")
+        print("  Jonathan Joby")
+        print("  Saral Hemnani")
+        sys.exit(1)
+    names = [line.strip() for line in open(PARTICIPANTS_FILE) if line.strip()]
+    if not names:
+        print("Error: participants.txt is empty.")
+        sys.exit(1)
+    return names
 
 
 async def generate():
+    participants = load_participants()
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
     async with SessionLocal() as db:
-        for display_name in PARTICIPANTS:
+        for display_name in participants:
             username = display_name.lower().replace(" ", "-")
             existing = await db.execute(select(User).where(User.username == username))
             if existing.scalar_one_or_none() is None:
@@ -53,7 +55,7 @@ async def generate():
         await db.commit()
 
     print("\nPersonal vote links (share each privately):\n")
-    for display_name in PARTICIPANTS:
+    for display_name in participants:
         username = display_name.lower().replace(" ", "-")
         sig = make_sig(username)
         url = f"{BASE_URL}/?user={username}&sig={sig}"

@@ -17,6 +17,18 @@ class User(Base):
 
     votes: Mapped[list["Vote"]] = relationship("Vote", back_populates="user")
     scores: Mapped[list["Score"]] = relationship("Score", back_populates="user")
+    messages: Mapped[list["Message"]] = relationship("Message", back_populates="user")
+
+
+class Message(Base):
+    __tablename__ = "messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    content: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    user: Mapped["User"] = relationship("User", back_populates="messages")
 
 
 class Match(Base):
@@ -92,6 +104,30 @@ class MatchStatus(BaseModel):
     result: Optional[str]
     my_vote: Optional[str]
     correct: Optional[bool]
+    underdog: Optional[str]  # "team_a" | "team_b" | None (if ranks equal)
+
+
+class ChatMessage(BaseModel):
+    id: int
+    username: str
+    display_name: str
+    content: str
+    created_at: datetime
+
+
+class ChatRequest(BaseModel):
+    content: str
+
+
+class PredictionHistoryRow(BaseModel):
+    match_id: int
+    match_label: str
+    kickoff_utc: datetime
+    stage: str
+    prediction: Optional[str]       # None if they didn't vote
+    result: Optional[str]           # None if not settled yet
+    correct: Optional[bool]
+    points: int
 
 
 class ScoreRow(BaseModel):

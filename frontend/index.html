@@ -19,6 +19,22 @@
     <div id="matches-container"></div>
   </main>
 
+  <!-- Chat widget -->
+  <div id="chat-widget" class="chat-widget">
+    <div class="chat-header" onclick="toggleChat()">
+      💬 Smack Talk <span id="chat-unread" class="chat-unread hidden"></span>
+      <span class="chat-toggle-icon" id="chat-toggle-icon">▲</span>
+    </div>
+    <div class="chat-body" id="chat-body">
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-input-row" id="chat-input-row">
+        <input id="chat-input" class="chat-input" type="text" placeholder="Say something..." maxlength="280" />
+        <button class="chat-send" onclick="sendMessage()">Send</button>
+      </div>
+      <div id="chat-readonly-note" class="chat-readonly hidden">Open your personal link to chat.</div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
   <script>
     (async () => {
@@ -82,10 +98,18 @@
 
       let actionHtml = "";
       if (m.status === "open" && !m.my_vote) {
+        const underdogA = m.underdog === "team_a" ? `<span class="upset-hint" title="Lower-ranked team — correct pick earns +1 upset bonus">⚡ Upset bonus if wins</span>` : "";
+        const underdogB = m.underdog === "team_b" ? `<span class="upset-hint" title="Lower-ranked team — correct pick earns +1 upset bonus">⚡ Upset bonus if wins</span>` : "";
         actionHtml = `
           <div class="vote-buttons">
-            <button class="btn-vote" onclick="vote(${m.id}, 'team_a', '${user}', '${sig}')">Vote ${escHtml(m.team_a)}</button>
-            <button class="btn-vote" onclick="vote(${m.id}, 'team_b', '${user}', '${sig}')">Vote ${escHtml(m.team_b)}</button>
+            <div class="vote-option">
+              <button class="btn-vote ${m.underdog === 'team_a' ? 'underdog' : ''}" onclick="vote(${m.id}, 'team_a', '${user}', '${sig}')">Vote ${escHtml(m.team_a)}</button>
+              ${underdogA}
+            </div>
+            <div class="vote-option">
+              <button class="btn-vote ${m.underdog === 'team_b' ? 'underdog' : ''}" onclick="vote(${m.id}, 'team_b', '${user}', '${sig}')">Vote ${escHtml(m.team_b)}</button>
+              ${underdogB}
+            </div>
           </div>`;
       } else if (m.my_vote) {
         const votedFor = m.my_vote === "team_a" ? m.team_a : m.team_b;
@@ -118,6 +142,70 @@
       return card;
     }
 
+    // ── Chat ──────────────────────────────────────────────────────
+    let chatOpen = false;
+    let lastSeenId = 0;
+
+    async function loadChat() {
+      const msgs = await apiFetch("/api/chat").catch(() => []);
+      renderChat(msgs);
+      if (!chatOpen && msgs.length && msgs[msgs.length - 1].id > lastSeenId) {
+        const unread = document.getElementById("chat-unread");
+        unread.textContent = "●";
+        unread.classList.remove("hidden");
+      }
+    }
+
+    function renderChat(msgs) {
+      const el = document.getElementById("chat-messages");
+      const { user } = getAuth();
+      el.innerHTML = msgs.map(m => `
+        <div class="chat-msg ${m.username === user ? 'mine' : ''}">
+          <span class="chat-name">${escHtml(m.display_name)}</span>
+          <span class="chat-text">${escHtml(m.content)}</span>
+        </div>`).join("");
+      el.scrollTop = el.scrollHeight;
+      if (msgs.length) lastSeenId = msgs[msgs.length - 1].id;
+    }
+
+    function toggleChat() {
+      chatOpen = !chatOpen;
+      document.getElementById("chat-body").style.display = chatOpen ? "flex" : "none";
+      document.getElementById("chat-toggle-icon").textContent = chatOpen ? "▼" : "▲";
+      document.getElementById("chat-unread").classList.add("hidden");
+      if (chatOpen) loadChat();
+    }
+
+    async function sendMessage() {
+      const { user, sig } = getAuth();
+      if (!user || !sig) return;
+      const input = document.getElementById("chat-input");
+      const content = input.value.trim();
+      if (!content) return;
+      input.value = "";
+      await apiFetch(`/api/chat?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      }).catch(() => {});
+      await loadChat();
+    }
+
+    document.getElementById("chat-input")?.addEventListener("keydown", e => {
+      if (e.key === "Enter") sendMessage();
+    });
+
+    // Show/hide input based on auth
+    const { user: chatUser, sig: chatSig } = getAuth();
+    if (!chatUser || !chatSig) {
+      document.getElementById("chat-input-row").classList.add("hidden");
+      document.getElementById("chat-readonly-note").classList.remove("hidden");
+    }
+
+    loadChat();
+    setInterval(loadChat, 10_000);
+
+    // ── Votes ──────────────────────────────────────────────────────
     async function vote(matchId, prediction, user, sig) {
       const errEl = document.getElementById(`err-${matchId}`);
       errEl.classList.add("hidden");
