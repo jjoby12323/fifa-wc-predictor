@@ -44,7 +44,14 @@
         document.getElementById("loading").classList.add("hidden");
         return;
       }
-      document.getElementById("greeting").textContent = `Hello, ${user}!`;
+      // Fetch display name instead of showing the URL slug
+      apiFetch(`/api/whoami?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`)
+        .then(data => {
+          document.getElementById("greeting").textContent = `Hello, ${data.display_name}!`;
+        })
+        .catch(() => {
+          document.getElementById("greeting").textContent = `Hello, ${user}!`;
+        });
       document.getElementById("leaderboard-link").href =
         `leaderboard.html?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`;
 

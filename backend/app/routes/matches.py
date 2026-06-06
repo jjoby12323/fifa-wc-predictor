@@ -9,6 +9,18 @@ from app.models import Match, Vote, User, MatchStatus, ScoreRow, Score
 
 router = APIRouter()
 
+@router.get("/api/whoami")
+async def whoami(
+    username: str = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    user_result = await db.execute(select(User).where(User.username == username))
+    user = user_result.scalar_one_or_none()
+    if user is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="User not found.")
+    return {"username": user.username, "display_name": user.display_name}
+
 
 def _match_status(match: Match, now: datetime) -> str:
     if match.result is not None:
