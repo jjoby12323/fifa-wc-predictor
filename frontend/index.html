@@ -10,7 +10,8 @@
   <header>
     <h1>⚽ FIFA WC 2026 Predictor</h1>
     <p id="greeting" class="subtitle"></p>
-    <a href="leaderboard.html" class="nav-link" id="leaderboard-link">View Leaderboard →</a>
+    <a href="leaderboard.html" class="nav-link" id="leaderboard-link">Leaderboard →</a>
+    <a href="bracket.html" class="nav-link" id="bracket-link">Standings & Bracket →</a>
   </header>
 
   <main id="app">
@@ -18,6 +19,17 @@
     <div id="loading" class="loading">Loading matches…</div>
     <div id="matches-container"></div>
   </main>
+
+  <!-- Match detail modal -->
+  <div id="match-modal" class="modal-backdrop hidden" onclick="closeMatchModal(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="match-modal-title"></h2>
+        <button class="modal-close" onclick="closeMatchModal()">✕</button>
+      </div>
+      <div id="match-modal-body" class="modal-body"></div>
+    </div>
+  </div>
 
   <!-- Chat widget -->
   <div id="chat-widget" class="chat-widget">
@@ -54,6 +66,8 @@
         });
       document.getElementById("leaderboard-link").href =
         `leaderboard.html?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`;
+      document.getElementById("bracket-link").href =
+        `bracket.html?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`;
 
       await loadMatches();
       setInterval(loadMatches, 60_000);
@@ -72,20 +86,31 @@
 
       document.getElementById("loading").classList.add("hidden");
 
-      // Group by matchday
-      const byDay = {};
+      // Group by LOCAL calendar date — kickoff_utc is UTC, but user sees their local date.
+      // e.g. 2026-06-11T19:00Z = Jun 12 00:30 IST, so it should sit under "Friday Jun 12".
+      const byDate = {};
       for (const m of matches) {
-        (byDay[m.matchday] = byDay[m.matchday] || []).push(m);
+        const raw = m.kickoff_utc.endsWith("Z") || m.kickoff_utc.includes("+")
+          ? m.kickoff_utc : m.kickoff_utc + "Z";
+        const d = new Date(raw);
+        // local date as sortable key
+        const dateKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+        (byDate[dateKey] = byDate[dateKey] || []).push(m);
       }
 
       const container = document.getElementById("matches-container");
       container.innerHTML = "";
 
-      for (const [day, dayMatches] of Object.entries(byDay)) {
+      for (const [dateKey, dayMatches] of Object.entries(byDate)) {
         const section = document.createElement("section");
         section.className = "matchday";
-        const firstKickoff = new Date(dayMatches[0].kickoff_utc + "Z");
-        section.innerHTML = `<h2>Matchday ${day} <span class="date">${firstKickoff.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</span></h2>`;
+        // dateKey is already the local date string, parse as local midnight
+        const [y, mo, d] = dateKey.split("-").map(Number);
+        const labelDate = new Date(y, mo - 1, d);
+        const dateLabel = labelDate.toLocaleDateString(undefined, {
+          weekday: "long", month: "short", day: "numeric"
+        });
+        section.innerHTML = `<h2><span class="date">${dateLabel}</span></h2>`;
 
         for (const m of dayMatches) {
           section.appendChild(renderMatchCard(m, user, sig));
@@ -96,11 +121,15 @@
 
     function renderMatchCard(m, user, sig) {
       const card = document.createElement("div");
-      card.className = `match-card status-${m.status}`;
+      card.className = `match-card status-${m.status} clickable`;
       card.dataset.matchId = m.id;
+      card.addEventListener("click", (e) => {
+        if (e.target.closest("button")) return; // don't open modal when clicking vote buttons
+        openMatchModal(m.id, user, sig);
+      });
 
       const kickoff = new Date(m.kickoff_utc + "Z");
-      const stageLabel = { group: "Group Stage", r16: "Round of 16", qf: "Quarter-Final", sf: "Semi-Final", final: "Final" }[m.stage] || m.stage;
+      const stageLabel = { group: "Group Stage", r32: "Round of 32", r16: "Round of 16", qf: "Quarter-Final", sf: "Semi-Final", final: "Final" }[m.stage] || m.stage;
       const statusLabel = { pending: "Not Open Yet", open: "Voting Open", closed: "Kicked Off", settled: "Settled" }[m.status] || m.status;
 
       let actionHtml = "";
@@ -147,6 +176,156 @@
         <div class="vote-error hidden" id="err-${m.id}"></div>
       `;
       return card;
+    }
+
+    // ── Match detail modal ────────────────────────────────────────
+    async function openMatchModal(matchId, user, sig) {
+      const modal = document.getElementById("match-modal");
+      document.getElementById("match-modal-title").textContent = "";
+      document.getElementById("match-modal-body").innerHTML = `
+        <div class="mo-loading">
+          <div class="mo-spinner"></div>
+          <span>Loading…</span>
+        </div>`;
+      modal.classList.remove("hidden");
+
+      let m;
+      try {
+        m = await apiFetch(`/api/matches/${matchId}?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`);
+      } catch (err) {
+        document.getElementById("match-modal-body").innerHTML =
+          `<p style="color:var(--red);padding:24px;text-align:center">${err.message}</p>`;
+        return;
+      }
+
+      try {
+
+      const STAGE_LABELS = { group: "Group Stage", r32: "Round of 32", r16: "Round of 16", qf: "Quarter-Final", sf: "Semi-Final", final: "Final" };
+      const stageLabel = STAGE_LABELS[m.stage] || m.stage;
+      // kickoff_utc arrives as a naive ISO string ("2026-06-15T18:00:00") — append Z so JS treats it as UTC
+      const rawKo = m.kickoff_utc.endsWith("Z") || m.kickoff_utc.includes("+") ? m.kickoff_utc : m.kickoff_utc + "Z";
+      const kickoff = new Date(rawKo);
+      const kickoffStr = isNaN(kickoff)
+        ? m.kickoff_utc
+        : kickoff.toLocaleString(undefined, {
+            weekday: "short", month: "short", day: "numeric",
+            hour: "2-digit", minute: "2-digit", timeZoneName: "short"
+          });
+
+      const isUnderdog = (side) => m.underdog === side;
+      const flagA = getFlagUrl(m.team_a);
+      const flagB = getFlagUrl(m.team_b);
+      const flagImgA = flagA
+        ? `<img class="mo-flag" src="${flagA}" alt="${escHtml(m.team_a)} flag" onerror="this.style.display='none'">`
+        : `<div class="mo-flag-placeholder">🏳</div>`;
+      const flagImgB = flagB
+        ? `<img class="mo-flag" src="${flagB}" alt="${escHtml(m.team_b)} flag" onerror="this.style.display='none'">`
+        : `<div class="mo-flag-placeholder">🏳</div>`;
+
+      // Split votes
+      const votedA      = m.votes.filter(v => v.prediction === "team_a");
+      const votedB      = m.votes.filter(v => v.prediction === "team_b");
+      const votedHidden = m.votes.filter(v => v.prediction === "hidden");
+      const notVoted    = m.votes.filter(v => !v.prediction);
+      const total       = m.votes.length;
+
+      const pctA = total ? Math.round((votedA.length / total) * 100) : 0;
+      const pctB = total ? Math.round((votedB.length / total) * 100) : 0;
+
+      const chipList = (list) => list.length
+        ? list.map(v => `<span class="mo-chip">${escHtml(v.display_name)}</span>`).join("")
+        : `<span class="mo-chip-empty">—</span>`;
+
+      // Winner highlight
+      const winnerA = m.result === "team_a";
+      const winnerB = m.result === "team_b";
+
+      document.getElementById("match-modal-title").innerHTML =
+        `<span class="mo-stage-badge">${stageLabel}</span>`;
+
+      document.getElementById("match-modal-body").innerHTML = `
+        <div class="mo-kickoff">
+
+          <!-- Teams row -->
+          <div class="mo-teams-row">
+            <div class="mo-team ${isUnderdog("team_a") ? "mo-underdog" : ""} ${winnerA ? "mo-winner" : ""}">
+              <div class="mo-flag-wrap">${flagImgA}</div>
+              <div class="mo-team-name">${escHtml(m.team_a)}</div>
+              <div class="mo-rank">FIFA #${m.fifa_rank_a}</div>
+              ${isUnderdog("team_a") ? `<div class="mo-dog-badge">⚡ Underdog</div>` : ""}
+            </div>
+
+            <div class="mo-vs-col">
+              ${m.result
+                ? `<div class="mo-result-crown">${winnerA ? escHtml(m.team_a) : escHtml(m.team_b)} wins</div>`
+                : `<div class="mo-vs">VS</div>`}
+              <div class="mo-kickoff-time">🕐 ${kickoffStr}</div>
+              ${m.stage !== "group" ? `<div class="mo-stage-note">${stageLabel}</div>` : ""}
+            </div>
+
+            <div class="mo-team ${isUnderdog("team_b") ? "mo-underdog" : ""} ${winnerB ? "mo-winner" : ""}">
+              <div class="mo-flag-wrap">${flagImgB}</div>
+              <div class="mo-team-name">${escHtml(m.team_b)}</div>
+              <div class="mo-rank">FIFA #${m.fifa_rank_b}</div>
+              ${isUnderdog("team_b") ? `<div class="mo-dog-badge">⚡ Underdog</div>` : ""}
+            </div>
+          </div>
+
+          <!-- Prediction bar -->
+          <div class="mo-pred-section">
+            <div class="mo-pred-header">
+              <span>Predictions</span>
+              <span class="mo-pred-total">${total} participant${total !== 1 ? "s" : ""}</span>
+            </div>
+
+            ${(votedA.length + votedB.length) > 0 ? `
+            <div class="mo-bar-wrap">
+              <div class="mo-bar-label-left">${escHtml(m.team_a)} · ${votedA.length}</div>
+              <div class="mo-bar">
+                <div class="mo-bar-a ${winnerA ? "mo-bar-win" : ""}" style="width:${pctA}%"></div>
+                <div class="mo-bar-b ${winnerB ? "mo-bar-win" : ""}" style="width:${pctB}%"></div>
+              </div>
+              <div class="mo-bar-label-right">${votedB.length} · ${escHtml(m.team_b)}</div>
+            </div>` : ""}
+
+            <div class="mo-split">
+              <div class="mo-split-col">
+                <div class="mo-split-head ${winnerA ? "mo-split-head-win" : ""}">${escHtml(m.team_a)}</div>
+                <div class="mo-chips">${chipList(votedA)}</div>
+              </div>
+              <div class="mo-split-divider"></div>
+              <div class="mo-split-col">
+                <div class="mo-split-head ${winnerB ? "mo-split-head-win" : ""}">${escHtml(m.team_b)}</div>
+                <div class="mo-chips">${chipList(votedB)}</div>
+              </div>
+            </div>
+
+            ${votedHidden.length ? `
+              <div class="mo-hidden-note">
+                🔒 ${votedHidden.length} vote${votedHidden.length > 1 ? "s" : ""} sealed — revealed after kickoff
+              </div>` : ""}
+            ${notVoted.length ? `
+              <div class="mo-not-voted">
+                ⏳ No pick yet: ${notVoted.map(v => escHtml(v.display_name)).join(", ")}
+              </div>` : ""}
+          </div>
+
+        </div>`;
+
+      } catch (renderErr) {
+        console.error("Match modal render error:", renderErr);
+        document.getElementById("match-modal-body").innerHTML =
+          `<p style="color:var(--red);padding:24px;text-align:center">
+            Failed to render match details.<br>
+            <code style="font-size:0.78rem;color:var(--muted)">${escHtml(renderErr.message)}</code>
+          </p>`;
+      }
+    }
+
+    function closeMatchModal(e) {
+      if (!e || e.target === document.getElementById("match-modal")) {
+        document.getElementById("match-modal").classList.add("hidden");
+      }
     }
 
     // ── Chat ──────────────────────────────────────────────────────

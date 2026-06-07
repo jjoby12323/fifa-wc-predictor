@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.routes import matches, votes, leaderboard, admin, chat, profile
+from app.routes import matches, votes, leaderboard, admin, chat, profile, standings
 from app.sync import start_result_scheduler, stop_result_scheduler
 
 
@@ -36,6 +36,7 @@ app.include_router(leaderboard.router)
 app.include_router(admin.router)
 app.include_router(chat.router)
 app.include_router(profile.router)
+app.include_router(standings.router)
 
 # Works both locally (../../frontend) and in Docker (/app/frontend)
 for _candidate in [

@@ -5,10 +5,11 @@ from typing import NamedTuple
 
 STAGE_MULTIPLIER = {
     "group": 1,
-    "r16": 2,
-    "qf": 3,
-    "sf": 4,
-    "final": 5,
+    "r32": 2,   # WC2026 Round of 32 (new in 48-team format)
+    "r16": 3,
+    "qf": 4,
+    "sf": 5,
+    "final": 6,
 }
 
 

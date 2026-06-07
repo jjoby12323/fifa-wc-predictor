@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FIFA WC 2026 — Standings & Bracket</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>⚽ FIFA WC 2026</h1>
+    <p class="subtitle">Standings &amp; Bracket</p>
+    <nav style="margin-left:auto;display:flex;gap:10px">
+      <a href="javascript:history.back()" class="nav-link">← Back</a>
+      <a id="lb-link" href="leaderboard.html" class="nav-link">Leaderboard →</a>
+    </nav>
+  </header>
+
+  <!-- Tabs -->
+  <div class="page-tabs">
+    <button class="page-tab active" id="tab-groups" onclick="switchTab('groups')">🏆 Group Stage</button>
+    <button class="page-tab" id="tab-bracket" onclick="switchTab('bracket')">🗂 Knockout Bracket</button>
+  </div>
+
+  <!-- Group standings -->
+  <div id="panel-groups" class="tab-panel">
+    <div id="standings-loading" class="loading">Loading standings…</div>
+    <div id="standings-error" class="error-banner hidden"></div>
+    <div id="groups-grid" class="groups-grid"></div>
+  </div>
+
+  <!-- Knockout bracket -->
+  <div id="panel-bracket" class="tab-panel hidden">
+    <div id="bracket-loading" class="loading">Loading bracket…</div>
+    <div id="bracket-error" class="error-banner hidden"></div>
+    <div id="bracket-scroll" class="bracket-scroll">
+      <div id="bracket-inner" class="bracket-inner"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    const STAGE_ORDER  = ["r32", "r16", "qf", "sf", "final"];
+    const STAGE_LABELS = { r32: "Round of 32", r16: "Round of 16", qf: "Quarter-Finals", sf: "Semi-Finals", final: "Final" };
+
+    // ── Auth passthrough ──────────────────────────────────────────
+    const { user, sig } = getAuth();
+    if (user && sig) {
+      document.getElementById("lb-link").href =
+        `leaderboard.html?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`;
+    }
+
+    // ── Tab switching ─────────────────────────────────────────────
+    let bracketLoaded = false;
+
+    function switchTab(name) {
+      document.querySelectorAll(".page-tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".tab-panel").forEach(p => p.classList.add("hidden"));
+      document.getElementById(`tab-${name}`).classList.add("active");
+      document.getElementById(`panel-${name}`).classList.remove("hidden");
+      if (name === "bracket" && !bracketLoaded) {
+        bracketLoaded = true;
+        loadBracket();
+      }
+    }
+
+    // ── Group standings ───────────────────────────────────────────
+    async function loadStandings() {
+      try {
+        const data = await apiFetch("/api/standings");
+        document.getElementById("standings-loading").classList.add("hidden");
+
+        if (data.error && !data.groups.length) {
+          document.getElementById("standings-error").textContent = data.error;
+          document.getElementById("standings-error").classList.remove("hidden");
+          return;
+        }
+
+        if (!data.groups.length) {
+          document.getElementById("standings-error").textContent =
+            "No group standings available yet. Check back once matches start.";
+          document.getElementById("standings-error").classList.remove("hidden");
+          return;
+        }
+
+        const grid = document.getElementById("groups-grid");
+        grid.innerHTML = "";
+
+        for (const g of data.groups) {
+          const card = document.createElement("div");
+          card.className = "group-card";
+
+          const qualifiers = g.table.slice(0, 2).map(r => r.team);
+
+          card.innerHTML = `
+            <h3 class="group-title">${escHtml(g.group)}</h3>
+            <table class="standings-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th class="th-team">Team</th>
+                  <th title="Played">MP</th>
+                  <th title="Won">W</th>
+                  <th title="Drawn">D</th>
+                  <th title="Lost">L</th>
+                  <th title="Goals For">GF</th>
+                  <th title="Goals Against">GA</th>
+                  <th title="Goal Difference">GD</th>
+                  <th title="Points">Pts</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${g.table.map((row, i) => `
+                  <tr class="${i < 2 ? 'qualifier' : ''}">
+                    <td class="pos">${row.position}</td>
+                    <td class="team-cell">
+                      ${flagImg(row.team)}
+                      <span>${escHtml(row.team)}</span>
+                    </td>
+                    <td>${row.played}</td>
+                    <td>${row.won}</td>
+                    <td>${row.drawn}</td>
+                    <td>${row.lost}</td>
+                    <td>${row.goals_for}</td>
+                    <td>${row.goals_against}</td>
+                    <td class="${row.goal_diff > 0 ? 'pos-gd' : row.goal_diff < 0 ? 'neg-gd' : ''}">${row.goal_diff > 0 ? '+' : ''}${row.goal_diff}</td>
+                    <td class="pts">${row.points}</td>
+                  </tr>`).join("")}
+              </tbody>
+            </table>`;
+          grid.appendChild(card);
+        }
+      } catch (err) {
+        document.getElementById("standings-loading").classList.add("hidden");
+        document.getElementById("standings-error").textContent = err.message;
+        document.getElementById("standings-error").classList.remove("hidden");
+      }
+    }
+
+    function flagImg(teamName) {
+      const url = getFlagUrl(teamName);
+      return url
+        ? `<img src="${url}" class="st-flag" alt="" onerror="this.style.display='none'">`
+        : `<span class="st-flag-ph">🏳</span>`;
+    }
+
+    // ── Knockout bracket ──────────────────────────────────────────
+    async function loadBracket() {
+      try {
+        const matches = await apiFetch("/api/bracket");
+        document.getElementById("bracket-loading").classList.add("hidden");
+
+        if (!matches.length) {
+          document.getElementById("bracket-error").textContent =
+            "No knockout matches available yet — check back after the group stage.";
+          document.getElementById("bracket-error").classList.remove("hidden");
+          return;
+        }
+
+        const byStage = {};
+        for (const m of matches) {
+          (byStage[m.stage] = byStage[m.stage] || []).push(m);
+        }
+
+        const inner = document.getElementById("bracket-inner");
+        inner.innerHTML = "";
+
+        const activeStages = STAGE_ORDER.filter(s => byStage[s]);
+
+        for (const stage of activeStages) {
+          const stageMatches = byStage[stage];
+          const col = document.createElement("div");
+          col.className = "bracket-col";
+
+          col.innerHTML = `<div class="bracket-col-header">${STAGE_LABELS[stage]}</div>`;
+
+          // Pair up matches for the visual bracket tree
+          for (let i = 0; i < stageMatches.length; i += 2) {
+            const pair = document.createElement("div");
+            pair.className = "bracket-pair";
+
+            const matchA = stageMatches[i];
+            const matchB = stageMatches[i + 1];
+
+            pair.innerHTML = bracketMatchHtml(matchA) + (matchB ? bracketMatchHtml(matchB) : "");
+            col.appendChild(pair);
+          }
+
+          inner.appendChild(col);
+        }
+
+        // Trophy at the end
+        const trophy = document.createElement("div");
+        trophy.className = "bracket-trophy";
+        trophy.innerHTML = `<div class="trophy-icon">🏆</div><div class="trophy-label">World Champion</div>`;
+        inner.appendChild(trophy);
+
+      } catch (err) {
+        document.getElementById("bracket-loading").classList.add("hidden");
+        document.getElementById("bracket-error").textContent = err.message;
+        document.getElementById("bracket-error").classList.remove("hidden");
+      }
+    }
+
+    function bracketMatchHtml(m) {
+      const kickoff = new Date((m.kickoff_utc.endsWith("Z") ? m.kickoff_utc : m.kickoff_utc + "Z"));
+      const dateStr = isNaN(kickoff) ? "" : kickoff.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      const timeStr = isNaN(kickoff) ? "" : kickoff.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+
+      const isTbd = (name) => !name || name === "TBD";
+      const teamClass = (side) => {
+        if (m.result === side) return "bm-team winner";
+        if (m.result && m.result !== side) return "bm-team loser";
+        return "bm-team";
+      };
+
+      const teamHtml = (name, side) => `
+        <div class="${teamClass(side)}">
+          ${isTbd(name)
+            ? `<span class="bm-flag-ph">🏳</span>`
+            : (() => { const u = getFlagUrl(name); return u ? `<img src="${u}" class="bm-flag" onerror="this.style.display='none'">` : `<span class="bm-flag-ph">🏳</span>`; })()
+          }
+          <span class="bm-name">${isTbd(name) ? '<span class="tbd">TBD</span>' : escHtml(name)}</span>
+          ${m.result === side ? `<span class="bm-win-mark">✓</span>` : ""}
+        </div>`;
+
+      return `
+        <div class="bracket-match ${m.status}">
+          <div class="bm-date">${dateStr} ${timeStr}</div>
+          ${teamHtml(m.team_a, "team_a")}
+          <div class="bm-sep"></div>
+          ${teamHtml(m.team_b, "team_b")}
+        </div>`;
+    }
+
+    // ── Init ──────────────────────────────────────────────────────
+    loadStandings();
+    setInterval(loadStandings, 120_000); // refresh every 2 min
+  </script>
+</body>
+</html>

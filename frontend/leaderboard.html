@@ -9,7 +9,8 @@
 <body>
   <header>
     <h1>⚽ FIFA WC 2026 Leaderboard</h1>
-    <a href="index.html" class="nav-link" id="vote-link">← Back to Predictions</a>
+    <a href="index.html" class="nav-link" id="vote-link">← Predictions</a>
+    <a href="bracket.html" class="nav-link" id="bracket-link">Standings & Bracket →</a>
   </header>
 
   <main id="app">
@@ -88,6 +89,9 @@
       if (user && sig) {
         document.getElementById("vote-link").href =
           `index.html?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`;
+        document.getElementById("bracket-link").href =
+          `bracket.html?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`;
+
       }
 
       await loadLeaderboard();

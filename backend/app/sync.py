@@ -68,7 +68,10 @@ async def _async_sync_results():
                     continue
 
                 winner_raw = (data.get("score") or {}).get("winner")
-                result = _WINNER_MAP.get(winner_raw)
+                if winner_raw == "DRAW":
+                    result = "draw"   # nobody scores; handled in scoring.py
+                else:
+                    result = _WINNER_MAP.get(winner_raw)
                 if result is None:
                     continue
 

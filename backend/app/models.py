@@ -107,6 +107,28 @@ class MatchStatus(BaseModel):
     underdog: Optional[str]  # "team_a" | "team_b" | None (if ranks equal)
 
 
+class MatchVoteEntry(BaseModel):
+    display_name: str
+    prediction: Optional[str]  # None if user hasn't voted
+
+
+class MatchDetail(BaseModel):
+    id: int
+    match_label: str
+    team_a: str
+    team_b: str
+    kickoff_utc: datetime
+    stage: str
+    matchday: int
+    status: str
+    result: Optional[str]
+    underdog: Optional[str]
+    fifa_rank_a: int
+    fifa_rank_b: int
+    my_vote: Optional[str]
+    votes: list[MatchVoteEntry]  # all participants' votes
+
+
 class ChatMessage(BaseModel):
     id: int
     username: str
