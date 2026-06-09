@@ -118,6 +118,7 @@ class MatchDetail(BaseModel):
     team_a: str
     team_b: str
     kickoff_utc: datetime
+    polls_open_utc: datetime
     stage: str
     matchday: int
     status: str

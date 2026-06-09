@@ -641,6 +641,81 @@ main { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
   padding: 8px 14px;
 }
 
+/* ── Modal voting actions ───────────────────────────────────── */
+.mo-vote-section {
+  padding: 18px 22px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.mo-vote-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+}
+.mo-vote-btns {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+.mo-vote-btn {
+  flex: 1;
+  background: var(--surface2);
+  color: var(--text);
+  border: 1.5px solid var(--border);
+  padding: 13px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: background 0.15s, border-color 0.15s, transform 0.05s;
+}
+.mo-vote-btn:hover { border-color: var(--green); background: #1c2230; }
+.mo-vote-btn:active { transform: scale(0.98); }
+.mo-vote-btn.picked {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+.mo-vote-btn.picked:hover { background: var(--green-dark); }
+.mo-vote-btn.underdog:not(.picked) { border-color: #7c3aed; }
+.mo-vote-btn.underdog:not(.picked):hover { border-color: #8b5cf6; background: #211b3a; }
+.mo-vote-btn.underdog.picked { background: #7c3aed; border-color: #7c3aed; }
+.mo-vote-btn.underdog.picked:hover { background: #6d28d9; }
+.mo-revoke-btn {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  padding: 7px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 500;
+  transition: color 0.15s, border-color 0.15s;
+}
+.mo-revoke-btn:hover { color: var(--red); border-color: var(--red); }
+.mo-vote-err {
+  color: var(--red);
+  font-size: 0.82rem;
+  text-align: center;
+}
+.mo-vote-locked {
+  margin: 16px 22px 0;
+  padding: 12px 16px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.mo-vote-locked strong { color: var(--text); }
+.mo-mark-ok { color: #4caf7d; }
+.mo-mark-no { color: var(--red); }
+
 /* ── Modal (profile / generic) table rows ───────────────────── */
 .modal-body tr.correct td { color: #4caf7d; }
 .modal-body tr.wrong td   { color: var(--red); opacity: 0.8; }

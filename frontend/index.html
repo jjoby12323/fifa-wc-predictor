@@ -240,6 +240,42 @@
       const winnerA = m.result === "team_a";
       const winnerB = m.result === "team_b";
 
+      // ── Voting action: pick / change / remove when open, read-only otherwise ──
+      let actionHtml = "";
+      if (m.status === "open") {
+        const pickedA = m.my_vote === "team_a";
+        const pickedB = m.my_vote === "team_b";
+        actionHtml = `
+          <div class="mo-vote-section">
+            <div class="mo-vote-title">${m.my_vote ? "Your pick — tap a team to change" : "Make your pick"}</div>
+            <div class="mo-vote-btns">
+              <button type="button" class="mo-vote-btn ${pickedA ? "picked" : ""} ${isUnderdog("team_a") ? "underdog" : ""}" onclick="voteFromModal(${m.id}, 'team_a')">
+                ${pickedA ? "✓ " : ""}${escHtml(m.team_a)}
+              </button>
+              <button type="button" class="mo-vote-btn ${pickedB ? "picked" : ""} ${isUnderdog("team_b") ? "underdog" : ""}" onclick="voteFromModal(${m.id}, 'team_b')">
+                ${pickedB ? "✓ " : ""}${escHtml(m.team_b)}
+              </button>
+            </div>
+            ${m.my_vote ? `<button type="button" class="mo-revoke-btn" onclick="revokeFromModal(${m.id})">✕ Remove my pick</button>` : ""}
+            <div class="mo-vote-err hidden" id="mo-vote-err"></div>
+          </div>`;
+      } else if (m.status === "pending") {
+        const rawPo = m.polls_open_utc.endsWith("Z") || m.polls_open_utc.includes("+") ? m.polls_open_utc : m.polls_open_utc + "Z";
+        const po = new Date(rawPo);
+        const poStr = isNaN(po) ? "" : po.toLocaleString(undefined, {
+          weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
+        });
+        actionHtml = `<div class="mo-vote-locked">⏳ Voting opens ${poStr}</div>`;
+      } else if (m.my_vote) {
+        const votedFor = m.my_vote === "team_a" ? m.team_a : m.team_b;
+        const mark = m.result
+          ? (m.my_vote === m.result ? ` <span class="mo-mark-ok">✓</span>` : ` <span class="mo-mark-no">✗</span>`)
+          : "";
+        actionHtml = `<div class="mo-vote-locked">🔒 Your pick: <strong>${escHtml(votedFor)}</strong>${mark}</div>`;
+      } else {
+        actionHtml = `<div class="mo-vote-locked">🔒 Voting closed — no pick made</div>`;
+      }
+
       document.getElementById("match-modal-title").innerHTML =
         `<span class="mo-stage-badge">${stageLabel}</span>`;
 
@@ -270,6 +306,9 @@
               ${isUnderdog("team_b") ? `<div class="mo-dog-badge">⚡ Underdog</div>` : ""}
             </div>
           </div>
+
+          <!-- Voting action -->
+          ${actionHtml}
 
           <!-- Prediction bar -->
           <div class="mo-pred-section">
@@ -405,6 +444,41 @@
       } catch (err) {
         errEl.textContent = err.message;
         errEl.classList.remove("hidden");
+      }
+    }
+
+    function showModalVoteError(msg) {
+      const e = document.getElementById("mo-vote-err");
+      if (e) { e.textContent = msg; e.classList.remove("hidden"); }
+    }
+
+    // Cast or change a pick from inside the match modal.
+    async function voteFromModal(matchId, prediction) {
+      const { user, sig } = getAuth();
+      try {
+        await apiFetch(`/api/vote?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ match_id: matchId, prediction }),
+        });
+        await openMatchModal(matchId, user, sig);  // refresh modal
+        loadMatches();                              // refresh cards behind it
+      } catch (err) {
+        showModalVoteError(err.message);
+      }
+    }
+
+    // Remove a pick from inside the match modal (allowed before kickoff).
+    async function revokeFromModal(matchId) {
+      const { user, sig } = getAuth();
+      try {
+        await apiFetch(`/api/vote?match_id=${matchId}&user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`, {
+          method: "DELETE",
+        });
+        await openMatchModal(matchId, user, sig);
+        loadMatches();
+      } catch (err) {
+        showModalVoteError(err.message);
       }
     }
   </script>

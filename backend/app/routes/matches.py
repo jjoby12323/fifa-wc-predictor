@@ -174,6 +174,7 @@ async def get_match_detail(
         team_a=match.team_a,
         team_b=match.team_b,
         kickoff_utc=match.kickoff_utc,
+        polls_open_utc=match.polls_open_utc,
         stage=match.stage,
         matchday=match.matchday,
         status=status,

@@ -36,11 +36,18 @@ async def submit_vote(
     if now >= match.kickoff_utc:
         raise HTTPException(status_code=400, detail="This match has already kicked off — voting is closed.")
 
-    existing = await db.execute(
+    existing_result = await db.execute(
         select(Vote).where(Vote.user_id == user.id, Vote.match_id == match.id)
     )
-    if existing.scalar_one_or_none() is not None:
-        raise HTTPException(status_code=409, detail="You've already voted for this match.")
+    existing = existing_result.scalar_one_or_none()
+
+    # Changing a pick is allowed any time before kickoff — just update in place.
+    if existing is not None:
+        changed = existing.prediction != body.prediction
+        existing.prediction = body.prediction
+        existing.submitted_at = now
+        await db.commit()
+        return {"status": "ok", "match_id": match.id, "prediction": body.prediction, "changed": changed}
 
     vote = Vote(
         user_id=user.id,
@@ -52,7 +59,46 @@ async def submit_vote(
     try:
         await db.commit()
     except IntegrityError:
+        # Race: a concurrent request inserted first — fall back to updating it.
         await db.rollback()
-        raise HTTPException(status_code=409, detail="You've already voted for this match.")
+        retry = await db.execute(
+            select(Vote).where(Vote.user_id == user.id, Vote.match_id == match.id)
+        )
+        vote = retry.scalar_one()
+        vote.prediction = body.prediction
+        vote.submitted_at = now
+        await db.commit()
 
-    return {"status": "ok", "match_id": match.id, "prediction": body.prediction}
+    return {"status": "ok", "match_id": match.id, "prediction": body.prediction, "changed": False}
+
+
+@router.delete("/api/vote")
+async def revoke_vote(
+    match_id: int,
+    username: str = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    user_result = await db.execute(select(User).where(User.username == username))
+    user = user_result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found. Contact the admin.")
+
+    match_result = await db.execute(select(Match).where(Match.id == match_id))
+    match = match_result.scalar_one_or_none()
+    if match is None:
+        raise HTTPException(status_code=404, detail="Match not found.")
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if now >= match.kickoff_utc:
+        raise HTTPException(status_code=400, detail="This match has already kicked off — your pick is locked.")
+
+    existing_result = await db.execute(
+        select(Vote).where(Vote.user_id == user.id, Vote.match_id == match_id)
+    )
+    existing = existing_result.scalar_one_or_none()
+    if existing is None:
+        raise HTTPException(status_code=404, detail="You don't have a pick to remove for this match.")
+
+    await db.delete(existing)
+    await db.commit()
+    return {"status": "ok", "match_id": match_id}
