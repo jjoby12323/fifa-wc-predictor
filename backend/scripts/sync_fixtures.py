@@ -28,6 +28,16 @@ FD_BASE = "https://api.football-data.org/v4"
 
 RANKINGS_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "rankings.json")
 
+# A "matchday" = all matches kicking off on the same calendar date in IST.
+# Voting for a whole matchday opens VOTING_WINDOW before its first kickoff.
+IST_OFFSET = timedelta(hours=5, minutes=30)
+VOTING_WINDOW = timedelta(hours=48)
+
+
+def _ist_date(kickoff_utc: datetime):
+    """Calendar date a kickoff falls on in IST (UTC+5:30)."""
+    return (kickoff_utc + IST_OFFSET).date()
+
 STAGE_MAP = {
     "GROUP_STAGE": "group",
     "ROUND_OF_16": "r16",
@@ -67,30 +77,39 @@ async def sync():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    matchday_counter: dict[str, int] = {}
+    # ── First pass: parse + keep only matches with confirmed teams ──────────────
+    parsed = []
+    for m in matches_raw:
+        # Skip matches where teams aren't confirmed yet (knockout placeholders)
+        home = (m.get("homeTeam") or {}).get("name")
+        away = (m.get("awayTeam") or {}).get("name")
+        if not home or not away:
+            continue
+        kickoff = datetime.fromisoformat(
+            m.get("utcDate", "").replace("Z", "+00:00")
+        ).replace(tzinfo=None)
+        parsed.append((m, home, away, kickoff))
 
+    # ── Group into matchdays by IST calendar date, numbered chronologically ─────
+    sorted_dates = sorted({_ist_date(k) for (_, _, _, k) in parsed})
+    matchday_of = {d: i + 1 for i, d in enumerate(sorted_dates)}
+
+    # Voting opens VOTING_WINDOW before each matchday's first kickoff — the same
+    # open time applies to every match in that matchday.
+    first_kickoff: dict[int, datetime] = {}
+    for (_, _, _, k) in parsed:
+        md = matchday_of[_ist_date(k)]
+        if md not in first_kickoff or k < first_kickoff[md]:
+            first_kickoff[md] = k
+    polls_open_of = {md: k - VOTING_WINDOW for md, k in first_kickoff.items()}
+
+    # ── Second pass: upsert ─────────────────────────────────────────────────────
     async with SessionLocal() as db:
-        for m in matches_raw:
-            # Skip matches where teams aren't confirmed yet (knockout placeholders)
-            home = (m.get("homeTeam") or {}).get("name")
-            away = (m.get("awayTeam") or {}).get("name")
-            if not home or not away:
-                continue
-
-            stage_raw = m.get("stage", "GROUP_STAGE")
-            stage = STAGE_MAP.get(stage_raw, "group")
-
-            # Assign a sequential matchday integer per stage group
-            group = m.get("group") or stage_raw
-            if group not in matchday_counter:
-                matchday_counter[group] = len(matchday_counter) + 1
-            matchday = matchday_counter[group]
-
+        for (m, home, away, kickoff) in parsed:
+            stage = STAGE_MAP.get(m.get("stage", "GROUP_STAGE"), "group")
+            matchday = matchday_of[_ist_date(kickoff)]
+            polls_open = polls_open_of[matchday]
             match_label = f"{home} vs {away}"
-
-            kickoff_str = m.get("utcDate", "")
-            kickoff = datetime.fromisoformat(kickoff_str.replace("Z", "+00:00")).replace(tzinfo=None)
-            polls_open = kickoff - timedelta(hours=24)
 
             result = None
             if m.get("status") == "FINISHED":
