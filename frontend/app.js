@@ -175,3 +175,53 @@ function escHtml(str) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
+
+// ── Smack-talk toast: small popup for new chat messages while the widget is closed ──
+let _chatToastTimer = null;
+let _chatToastHideTimer = null;
+
+function _ensureChatToast() {
+  let t = document.getElementById("chat-toast");
+  if (!t) {
+    t = document.createElement("div");
+    t.id = "chat-toast";
+    t.className = "chat-toast hidden";
+    t.innerHTML =
+      `<span class="chat-toast-icon">💬</span>` +
+      `<div class="chat-toast-body">` +
+        `<span class="chat-toast-name"></span>` +
+        `<span class="chat-toast-text"></span>` +
+      `</div>`;
+    // Clicking the toast opens the chat (if it's currently closed).
+    t.addEventListener("click", () => {
+      const icon = document.getElementById("chat-toggle-icon");
+      const isOpen = icon && icon.textContent.trim() === "▼";
+      if (!isOpen && typeof toggleChat === "function") toggleChat();
+      hideChatToast();
+    });
+    document.body.appendChild(t);
+  }
+  return t;
+}
+
+function showChatToast(msg) {
+  if (!msg) return;
+  const t = _ensureChatToast();
+  if (_chatToastHideTimer) { clearTimeout(_chatToastHideTimer); _chatToastHideTimer = null; }
+  t.querySelector(".chat-toast-name").textContent = msg.display_name || "New message";
+  t.querySelector(".chat-toast-text").textContent = msg.content || "";
+  t.classList.remove("hidden");
+  void t.offsetWidth;            // reflow so the slide-in transition runs
+  t.classList.add("show");
+  if (_chatToastTimer) clearTimeout(_chatToastTimer);
+  _chatToastTimer = setTimeout(hideChatToast, 5000);
+}
+
+function hideChatToast() {
+  const t = document.getElementById("chat-toast");
+  if (!t) return;
+  t.classList.remove("show");
+  if (_chatToastTimer) { clearTimeout(_chatToastTimer); _chatToastTimer = null; }
+  if (_chatToastHideTimer) clearTimeout(_chatToastHideTimer);
+  _chatToastHideTimer = setTimeout(() => { t.classList.add("hidden"); _chatToastHideTimer = null; }, 220);
+}

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Leaderboard — FIFA WC 2026</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=2" />
 </head>
 <body>
   <header>
@@ -81,7 +81,7 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=2"></script>
   <script>
     (async () => {
       const { user, sig } = getAuth();
@@ -202,15 +202,36 @@
 
     // ── Chat ──────────────────────────────────────────────────────
     let chatOpen = false;
-    let lastSeenId = 0;
+    let lastSeenId = 0;       // newest message id the user has already seen
+    let chatPrimed = false;   // first poll seeds the baseline so existing history isn't "unread"
 
     async function loadChat() {
       const msgs = await apiFetch("/api/chat").catch(() => []);
       renderChat(msgs);
-      if (!chatOpen && msgs.length && msgs[msgs.length - 1].id > lastSeenId) {
-        const unread = document.getElementById("chat-unread");
-        unread.textContent = "●";
-        unread.classList.remove("hidden");
+
+      const latestId = msgs.length ? msgs[msgs.length - 1].id : 0;
+
+      // First load: treat all existing messages as seen — only notify going forward.
+      if (!chatPrimed) {
+        lastSeenId = latestId;
+        chatPrimed = true;
+        return;
+      }
+
+      // Chat open: the user is reading in real time, so keep the baseline current.
+      if (chatOpen) {
+        lastSeenId = latestId;
+        return;
+      }
+
+      // Chat closed: anything newer than the baseline (and not your own) is unread.
+      const { user } = getAuth();
+      const unread = msgs.filter(m => m.id > lastSeenId && m.username !== user);
+      if (unread.length) {
+        const dot = document.getElementById("chat-unread");
+        dot.textContent = "●";
+        dot.classList.remove("hidden");
+        showChatToast(unread[unread.length - 1]);  // pop the newest unread message
       }
     }
 
@@ -223,7 +244,6 @@
           <span class="chat-text">${escHtml(m.content)}</span>
         </div>`).join("");
       el.scrollTop = el.scrollHeight;
-      if (msgs.length) lastSeenId = msgs[msgs.length - 1].id;
     }
 
     function toggleChat() {
@@ -231,6 +251,7 @@
       document.getElementById("chat-body").style.display = chatOpen ? "flex" : "none";
       document.getElementById("chat-toggle-icon").textContent = chatOpen ? "▼" : "▲";
       document.getElementById("chat-unread").classList.add("hidden");
+      hideChatToast();
       if (chatOpen) loadChat();
     }
 
@@ -260,7 +281,7 @@
     }
 
     loadChat();
-    setInterval(loadChat, 10_000);
+    setInterval(loadChat, 4_000);
   </script>
 </body>
 </html>
