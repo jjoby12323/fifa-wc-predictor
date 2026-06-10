@@ -23,7 +23,7 @@ A team prediction game for the 2026 FIFA World Cup. Each person gets a signed pe
 | Correct prediction (SF) | 4 |
 | Correct prediction (Final) | 5 |
 | Streak bonus (every 3 in a row) | +1 |
-| Upset bonus (underdog win) | +1 |
+<!-- | Upset bonus (underdog win) | +1 | -->
 | Perfect matchday (all correct) | +2 |
 
 ## Setup
@@ -59,6 +59,13 @@ FOOTBALLDATA_API_KEY=
 
 # * for local dev, your domain in prod
 ALLOWED_ORIGINS=*
+
+# Slack Incoming Webhook for reminders + leaderboard posts (optional — leave blank to disable)
+SLACK_WEBHOOK_URL=
+
+# Optional Slack tuning (defaults shown):
+# SLACK_REMINDER_HOURS_BEFORE=3   # hours before a matchday's first kickoff to nudge non-voters
+# SLACK_LEADERBOARD_HOUR_IST=9    # daily standings post time, in IST
 ```
 
 ### 3. Run migrations
@@ -147,6 +154,27 @@ python -m scripts.sync_fixtures
 python -m scripts.generate_links
 ```
 
+## Slack notifications (optional)
+
+Posts reminders and leaderboard updates to a Slack channel via an **Incoming Webhook** (outbound only — no bot user or scopes needed).
+
+**Setup:**
+1. In Slack: *Apps → Incoming Webhooks → Add to Slack*, pick your channel, copy the webhook URL.
+2. Set it as a secret:
+   - Local: add `SLACK_WEBHOOK_URL=...` to `backend/.env`
+   - Fly.io: `fly secrets set SLACK_WEBHOOK_URL="https://hooks.slack.com/services/..."`
+3. Restart the app and verify: `curl -X POST https://your-app/admin/slack-test -H "X-Admin-Key: YOUR_ADMIN_KEY"`
+
+When `SLACK_WEBHOOK_URL` is unset, all Slack code is a no-op — the app runs identically.
+
+**What it posts** (all idempotent; the bot won't replay a backlog when first enabled):
+- **Polls open** — when a matchday's voting window opens (48h before its first kickoff)
+- **Vote reminder** — `SLACK_REMINDER_HOURS_BEFORE` hours before kickoff, listing who hasn't picked
+- **Match results** — as each match auto-settles (flags upsets)
+- **Daily leaderboard** — every day at `SLACK_LEADERBOARD_HOUR_IST`
+
+Requires running `alembic upgrade head` (adds the `sent_notifications` table) — see below.
+
 ## Settling results manually (fallback)
 
 ```bash
@@ -197,3 +225,4 @@ All endpoints require `?user=NAME&sig=HMAC` except `/api/chat` (read) and admin 
 | `GET` | `/admin/matches` | List all matches with IDs |
 | `POST` | `/admin/reset-scores` | Wipe votes, scores, results |
 | `POST` | `/admin/reset-all` | Wipe everything |
+| `POST` | `/admin/slack-test` | Send a test message to the Slack webhook |

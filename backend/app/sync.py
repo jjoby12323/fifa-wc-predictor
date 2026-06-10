@@ -14,6 +14,8 @@ from sqlalchemy import select, delete
 from app.db import SessionLocal
 from app.models import Match, Vote, Score, User
 from app.scoring import compute_all_scores, MatchData, VoteData
+from app import slack, notifications
+from app.notifications import announce_match_result
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +80,7 @@ async def _async_sync_results():
                 match.result = result
                 await db.flush()
                 await _recompute_scores(db)
+                await announce_match_result(db, match)  # Slack post (idempotent, no-op if disabled)
 
         await db.commit()
 
@@ -121,12 +124,26 @@ async def _recompute_scores(db):
 
 
 def start_result_scheduler():
-    if not FOOTBALLDATA_API_KEY:
-        logger.info("FOOTBALLDATA_API_KEY not set — auto-settle disabled. Use POST /admin/settle manually.")
+    have_football = bool(FOOTBALLDATA_API_KEY)
+    have_slack = slack.slack_enabled()
+
+    if not have_football and not have_slack:
+        logger.info("Neither FOOTBALLDATA_API_KEY nor SLACK_WEBHOOK_URL set — scheduler disabled.")
         return
-    _scheduler.add_job(_sync_results_job, "interval", minutes=10, id="sync_results")
+
+    if have_football:
+        _scheduler.add_job(_sync_results_job, "interval", minutes=10, id="sync_results")
+        logger.info("Result sync enabled (every 10 minutes).")
+    else:
+        logger.info("FOOTBALLDATA_API_KEY not set — auto-settle disabled. Use POST /admin/settle manually.")
+
+    if have_slack:
+        _scheduler.add_job(notifications.run_notifications_job, "interval", minutes=5, id="slack_notifications")
+        hh, mm = notifications.leaderboard_cron_utc()
+        _scheduler.add_job(notifications.run_daily_leaderboard_job, "cron", hour=hh, minute=mm, id="slack_leaderboard")
+        logger.info("Slack notifications enabled (reminders every 5 min; daily leaderboard at %02d:%02d UTC).", hh, mm)
+
     _scheduler.start()
-    logger.info("Result sync scheduler started (every 10 minutes).")
 
 
 def stop_result_scheduler():

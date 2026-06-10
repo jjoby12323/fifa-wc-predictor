@@ -106,6 +106,16 @@ async def reset_all(
     return {"status": "reset", "cleared": ["votes", "scores", "matches", "users"]}
 
 
+@router.post("/admin/slack-test")
+async def slack_test(_=Depends(require_admin)):
+    """Fire a test message to verify SLACK_WEBHOOK_URL is wired up correctly."""
+    from app.slack import post_to_slack, slack_enabled
+    if not slack_enabled():
+        raise HTTPException(status_code=400, detail="SLACK_WEBHOOK_URL not set.")
+    ok = await post_to_slack(":wave: Test from the FIFA WC 2026 Predictor bot — webhook is live!")
+    return {"status": "ok" if ok else "failed"}
+
+
 @router.get("/admin/matches")
 async def list_matches(
     db: AsyncSession = Depends(get_db),

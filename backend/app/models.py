@@ -31,6 +31,15 @@ class Message(Base):
     user: Mapped["User"] = relationship("User", back_populates="messages")
 
 
+class SentNotification(Base):
+    """Idempotency ledger for Slack posts — one row per already-sent announcement."""
+    __tablename__ = "sent_notifications"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    key: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    sent_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
 class Match(Base):
     __tablename__ = "matches"
 
