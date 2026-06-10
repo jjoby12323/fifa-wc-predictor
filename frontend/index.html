@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FIFA WC 2026 Predictor</title>
-  <link rel="stylesheet" href="style.css?v=4" />
+  <link rel="stylesheet" href="style.css?v=7" />
 </head>
 <body>
   <header>
@@ -129,7 +129,7 @@
       });
 
       const kickoff = new Date(m.kickoff_utc + "Z");
-      const stageLabel = { group: "Group Stage", r32: "Round of 32", r16: "Round of 16", qf: "Quarter-Final", sf: "Semi-Final", final: "Final" }[m.stage] || m.stage;
+      const stageLabel = { group: "Group Stage", r32: "Round of 32", r16: "Round of 16", qf: "Quarter-Final", sf: "Semi-Final", final: "Final", third: "3rd Place" }[m.stage] || m.stage;
       const statusLabel = { pending: "Not Open Yet", open: "Voting Open", closed: "Kicked Off", settled: "Settled" }[m.status] || m.status;
 
       let actionHtml = "";
@@ -200,7 +200,7 @@
 
       try {
 
-      const STAGE_LABELS = { group: "Group Stage", r32: "Round of 32", r16: "Round of 16", qf: "Quarter-Final", sf: "Semi-Final", final: "Final" };
+      const STAGE_LABELS = { group: "Group Stage", r32: "Round of 32", r16: "Round of 16", qf: "Quarter-Final", sf: "Semi-Final", final: "Final", third: "3rd Place" };
       const stageLabel = STAGE_LABELS[m.stage] || m.stage;
       // kickoff_utc arrives as a naive ISO string ("2026-06-15T18:00:00") — append Z so JS treats it as UTC
       const rawKo = m.kickoff_utc.endsWith("Z") || m.kickoff_utc.includes("+") ? m.kickoff_utc : m.kickoff_utc + "Z";

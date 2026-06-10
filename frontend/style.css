@@ -62,6 +62,19 @@ main { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
   margin-bottom: 20px;
 }
 
+/* calm "nothing here yet" state — not an error */
+.empty-note {
+  text-align: center;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px 20px;
+  margin: 8px 0 20px;
+  font-size: 0.98rem;
+}
+.empty-sub { margin-top: 6px; font-size: 0.83rem; opacity: 0.7; }
+
 /* ── Matchday sections ──────────────────────────────────── */
 
 .matchday { margin-bottom: 36px; }
@@ -981,74 +994,51 @@ main { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
 }
 
 .bracket-inner {
+  position: relative;                 /* anchors the SVG connector overlay */
   display: flex;
-  gap: 0;
-  align-items: flex-start;
-  min-width: max-content;
-  padding: 8px 0 24px;
+  align-items: stretch;
+  min-width: 100%;                    /* fill the page; scrolls only if columns hit their min */
+  padding: 8px 12px 24px;
 }
 
-.bracket-col {
-  display: flex;
-  flex-direction: column;
-  width: 220px;
-  flex-shrink: 0;
-}
+/* SVG overlay holding the connector lines (drawn from real card geometry) */
+.br2-lines { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 0; }
+.br2-lines line { stroke: var(--border); stroke-width: 2; }
 
-.bracket-col-header {
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--muted);
-  text-align: center;
-  padding: 8px 0 16px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 16px;
-}
+.br2-side { display: flex; align-items: stretch; flex: 4 1 0; min-width: 0; }
 
-/* pairs have spacing to align with next stage visually */
-.bracket-pair {
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  margin-bottom: 12px;
-  flex: 1;
+.br2-round { display: flex; flex-direction: column; flex: 1 1 0; min-width: 92px; }
+.br2-round-head {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--muted); text-align: center;
+  padding-bottom: 10px; margin-bottom: 6px; border-bottom: 1px solid var(--border);
 }
+.br2-round-body { flex: 1; display: flex; flex-direction: column; justify-content: space-around; }
 
-/* right-side connector out of each pair */
-.bracket-pair::after {
-  content: "";
-  position: absolute;
-  right: -1px;
-  top: 25%;
-  bottom: 25%;
-  width: 1px;
-  background: var(--border);
+/* centre column: Final + trophy + 3rd place */
+.br2-center {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  flex: 1 1 0; min-width: 0; padding: 0 6px; gap: 6px; z-index: 1;
 }
-
-/* horizontal connector between pairs and next stage */
-.bracket-pair::before {
-  content: "";
-  position: absolute;
-  right: -20px;
-  top: 50%;
-  width: 20px;
-  height: 1px;
-  background: var(--border);
-}
-
-.bracket-col:last-of-type .bracket-pair::after,
-.bracket-col:last-of-type .bracket-pair::before { display: none; }
+.br2-center-label { font-size: 0.74rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; color: var(--gold); }
+.br2-third-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-top: 14px; }
+.br2-trophy { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 8px 0; }
+.br2-trophy-icon { font-size: 2.2rem; line-height: 1; }
+.br2-trophy-cap { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gold); }
 
 .bracket-match {
+  position: relative;
+  z-index: 1;
+  width: auto;
+  min-width: 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-  margin: 4px 20px 4px 0;
+  margin: 6px 8px;
   overflow: hidden;
   transition: border-color 0.15s;
 }
+.br2-center .bracket-match { margin: 6px 0; }
 
 .bracket-match.settled { border-left: 2px solid var(--gold); }
 .bracket-match.open    { border-left: 2px solid var(--green); }
@@ -1098,20 +1088,7 @@ main { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
   margin: 0 10px;
 }
 
-/* Trophy column */
-.bracket-trophy {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 80px;
-  flex-shrink: 0;
-  padding-top: 60px;
-  gap: 6px;
-}
-
-.trophy-icon { font-size: 2.2rem; }
-.trophy-label { font-size: 0.68rem; color: var(--gold); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; text-align: center; }
+/* (legacy single-column trophy styles removed — see .br2-center / .br2-trophy) */
 
 @media (max-width: 600px) {
   header { padding: 16px; }

@@ -46,7 +46,13 @@ async def get_matches(
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="User not found. Contact the admin.")
 
-    matches_result = await db.execute(select(Match).order_by(Match.kickoff_utc))
+    # Only votable matches — knockout fixtures with undecided teams ("TBD") are
+    # excluded here (they live on the bracket page until teams are confirmed).
+    matches_result = await db.execute(
+        select(Match)
+        .where(Match.team_a != "TBD", Match.team_b != "TBD")
+        .order_by(Match.kickoff_utc)
+    )
     matches = matches_result.scalars().all()
 
     votes_result = await db.execute(select(Vote).where(Vote.user_id == user.id))

@@ -83,7 +83,7 @@ async def get_standings():
 @router.get("/api/bracket")
 async def get_bracket(db: AsyncSession = Depends(get_db)):
     """All knockout-stage matches from the DB, grouped by stage."""
-    knockout_stages = ["r32", "r16", "qf", "sf", "final"]
+    knockout_stages = ["r32", "r16", "qf", "sf", "final", "third"]
     res = await db.execute(
         select(Match)
         .where(Match.stage.in_(knockout_stages))

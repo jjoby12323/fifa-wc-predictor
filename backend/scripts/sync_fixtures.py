@@ -40,11 +40,13 @@ def _ist_date(kickoff_utc: datetime):
 
 STAGE_MAP = {
     "GROUP_STAGE": "group",
-    "ROUND_OF_16": "r16",
+    "LAST_32": "r32",        # WC2026 48-team format: Round of 32
+    "LAST_16": "r16",
+    "ROUND_OF_16": "r16",    # legacy naming, kept for safety
     "QUARTER_FINALS": "qf",
     "SEMI_FINALS": "sf",
     "FINAL": "final",
-    "THIRD_PLACE": "sf",
+    "THIRD_PLACE": "third",  # its own stage so it sits in the bracket centre, not SF
 }
 
 
@@ -77,14 +79,13 @@ async def sync():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # ── First pass: parse + keep only matches with confirmed teams ──────────────
+    # ── First pass: parse ALL fixtures. Knockout matches have no teams yet, so
+    # they're stored as "TBD" — this populates the bracket skeleton. They're kept
+    # out of the votable list in routes/matches.py until teams are confirmed.
     parsed = []
     for m in matches_raw:
-        # Skip matches where teams aren't confirmed yet (knockout placeholders)
-        home = (m.get("homeTeam") or {}).get("name")
-        away = (m.get("awayTeam") or {}).get("name")
-        if not home or not away:
-            continue
+        home = (m.get("homeTeam") or {}).get("name") or "TBD"
+        away = (m.get("awayTeam") or {}).get("name") or "TBD"
         kickoff = datetime.fromisoformat(
             m.get("utcDate", "").replace("Z", "+00:00")
         ).replace(tzinfo=None)

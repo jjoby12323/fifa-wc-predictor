@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FIFA WC 2026 — Standings & Bracket</title>
-  <link rel="stylesheet" href="style.css?v=4" />
+  <link rel="stylesheet" href="style.css?v=7" />
 </head>
 <body>
   <header>
@@ -40,9 +40,6 @@
 
   <script src="app.js?v=2"></script>
   <script>
-    const STAGE_ORDER  = ["r32", "r16", "qf", "sf", "final"];
-    const STAGE_LABELS = { r32: "Round of 32", r16: "Round of 16", qf: "Quarter-Finals", sf: "Semi-Finals", final: "Final" };
-
     // ── Auth passthrough ──────────────────────────────────────────
     const { user, sig } = getAuth();
     if (user && sig) {
@@ -70,18 +67,21 @@
         const data = await apiFetch("/api/standings");
         document.getElementById("standings-loading").classList.add("hidden");
 
+        const note = document.getElementById("standings-error");
         if (data.error && !data.groups.length) {
-          document.getElementById("standings-error").textContent = data.error;
-          document.getElementById("standings-error").classList.remove("hidden");
+          note.className = "error-banner";
+          note.textContent = data.error;
           return;
         }
 
         if (!data.groups.length) {
-          document.getElementById("standings-error").textContent =
-            "No group standings available yet. Check back once matches start.";
-          document.getElementById("standings-error").classList.remove("hidden");
+          note.className = "empty-note";
+          note.innerHTML = `📊 Group standings will appear here once the tournament kicks off.
+            <div class="empty-sub">They update live from football-data.org as matches are played.</div>`;
           return;
         }
+
+        note.className = "error-banner hidden";  // data present — clear any prior note
 
         const grid = document.getElementById("groups-grid");
         grid.innerHTML = "";
@@ -132,8 +132,9 @@
         }
       } catch (err) {
         document.getElementById("standings-loading").classList.add("hidden");
-        document.getElementById("standings-error").textContent = err.message;
-        document.getElementById("standings-error").classList.remove("hidden");
+        const note = document.getElementById("standings-error");
+        note.className = "error-banner";
+        note.textContent = err.message;
       }
     }
 
@@ -144,62 +145,115 @@
         : `<span class="st-flag-ph">🏳</span>`;
     }
 
-    // ── Knockout bracket ──────────────────────────────────────────
+    // ── Knockout bracket (two-sided, converging to the centre) ─────
     async function loadBracket() {
       try {
         const matches = await apiFetch("/api/bracket");
         document.getElementById("bracket-loading").classList.add("hidden");
+        const errEl = document.getElementById("bracket-error");
 
         if (!matches.length) {
-          document.getElementById("bracket-error").textContent =
-            "No knockout matches available yet — check back after the group stage.";
-          document.getElementById("bracket-error").classList.remove("hidden");
+          errEl.className = "empty-note";
+          errEl.textContent = "The knockout bracket appears here once the fixtures are scheduled.";
           return;
         }
+        errEl.className = "error-banner hidden";
 
         const byStage = {};
-        for (const m of matches) {
-          (byStage[m.stage] = byStage[m.stage] || []).push(m);
-        }
+        for (const m of matches) (byStage[m.stage] = byStage[m.stage] || []).push(m);
+        for (const s in byStage) byStage[s].sort((a, b) => (a.kickoff_utc < b.kickoff_utc ? -1 : 1));
 
-        const inner = document.getElementById("bracket-inner");
-        inner.innerHTML = "";
+        // Split each round in half — left side feeds inward, right side mirrors.
+        const half = (a = []) => { const n = Math.ceil(a.length / 2); return [a.slice(0, n), a.slice(n)]; };
+        const [r32L, r32R] = half(byStage.r32);
+        const [r16L, r16R] = half(byStage.r16);
+        const [qfL,  qfR]  = half(byStage.qf);
+        const [sfL,  sfR]  = half(byStage.sf);
+        const finalM = (byStage.final || [])[0];
+        const thirdM = (byStage.third || [])[0];
 
-        const activeStages = STAGE_ORDER.filter(s => byStage[s]);
+        const col = (label, ms) => `
+          <div class="br2-round">
+            <div class="br2-round-head">${label}</div>
+            <div class="br2-round-body">${(ms || []).map(bracketMatchHtml).join("")}</div>
+          </div>`;
 
-        for (const stage of activeStages) {
-          const stageMatches = byStage[stage];
-          const col = document.createElement("div");
-          col.className = "bracket-col";
+        document.getElementById("bracket-inner").innerHTML = `
+          <div class="br2-side br2-left">
+            ${col("Round of 32", r32L)}
+            ${col("Round of 16", r16L)}
+            ${col("Quarter-Finals", qfL)}
+            ${col("Semi-Finals", sfL)}
+          </div>
+          <div class="br2-center">
+            <div class="br2-center-label">Final</div>
+            ${finalM ? bracketMatchHtml(finalM) : ""}
+            <div class="br2-trophy"><span class="br2-trophy-icon">🏆</span><span class="br2-trophy-cap">Champion</span></div>
+            ${thirdM ? `<div class="br2-third-label">3rd Place</div>${bracketMatchHtml(thirdM)}` : ""}
+          </div>
+          <div class="br2-side br2-right">
+            ${col("Semi-Finals", sfR)}
+            ${col("Quarter-Finals", qfR)}
+            ${col("Round of 16", r16R)}
+            ${col("Round of 32", r32R)}
+          </div>`;
 
-          col.innerHTML = `<div class="bracket-col-header">${STAGE_LABELS[stage]}</div>`;
-
-          // Pair up matches for the visual bracket tree
-          for (let i = 0; i < stageMatches.length; i += 2) {
-            const pair = document.createElement("div");
-            pair.className = "bracket-pair";
-
-            const matchA = stageMatches[i];
-            const matchB = stageMatches[i + 1];
-
-            pair.innerHTML = bracketMatchHtml(matchA) + (matchB ? bracketMatchHtml(matchB) : "");
-            col.appendChild(pair);
-          }
-
-          inner.appendChild(col);
-        }
-
-        // Trophy at the end
-        const trophy = document.createElement("div");
-        trophy.className = "bracket-trophy";
-        trophy.innerHTML = `<div class="trophy-icon">🏆</div><div class="trophy-label">World Champion</div>`;
-        inner.appendChild(trophy);
-
+        requestAnimationFrame(drawConnectors);
       } catch (err) {
         document.getElementById("bracket-loading").classList.add("hidden");
-        document.getElementById("bracket-error").textContent = err.message;
-        document.getElementById("bracket-error").classList.remove("hidden");
+        const errEl = document.getElementById("bracket-error");
+        errEl.className = "error-banner";
+        errEl.textContent = err.message;
       }
+    }
+
+    // Connector lines drawn as an SVG overlay from the real card positions,
+    // so they always line up regardless of how the cards flow.
+    function drawConnectors() {
+      const inner = document.getElementById("bracket-inner");
+      if (!inner || !inner.querySelector(".br2-side")) return;
+      inner.querySelectorAll("svg.br2-lines").forEach(s => s.remove());
+      const NS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(NS, "svg");
+      svg.setAttribute("class", "br2-lines");
+      svg.setAttribute("width", inner.scrollWidth);
+      svg.setAttribute("height", inner.scrollHeight);
+      inner.appendChild(svg);
+
+      const base = inner.getBoundingClientRect();
+      const geo = el => { const r = el.getBoundingClientRect(); return { l: r.left - base.left, r: r.right - base.left, cy: r.top - base.top + r.height / 2 }; };
+      const line = (x1, y1, x2, y2) => {
+        const ln = document.createElementNS(NS, "line");
+        ln.setAttribute("x1", x1); ln.setAttribute("y1", y1); ln.setAttribute("x2", x2); ln.setAttribute("y2", y2);
+        svg.appendChild(ln);
+      };
+      // elbow from one card to another; dir +1 flows right, -1 flows left
+      const elbow = (from, to, dir) => {
+        const a = geo(from), b = geo(to);
+        const ax = dir > 0 ? a.r : a.l, bx = dir > 0 ? b.l : b.r, mid = (ax + bx) / 2;
+        line(ax, a.cy, mid, a.cy);
+        line(mid, a.cy, mid, b.cy);
+        line(mid, b.cy, bx, b.cy);
+      };
+      const cardsIn = body => [...body.querySelectorAll(".bracket-match")];
+      const link = (fromBody, toBody, dir) => {
+        const from = cardsIn(fromBody), to = cardsIn(toBody);
+        for (let k = 0; k < to.length; k++) {
+          if (from[2 * k]) elbow(from[2 * k], to[k], dir);
+          if (from[2 * k + 1]) elbow(from[2 * k + 1], to[k], dir);
+        }
+      };
+
+      const L = [...inner.querySelectorAll(".br2-left .br2-round-body")];   // [r32, r16, qf, sf]
+      const R = [...inner.querySelectorAll(".br2-right .br2-round-body")];  // [sf, qf, r16, r32]
+      for (let i = 0; i < L.length - 1; i++) link(L[i], L[i + 1], +1);
+      for (let i = R.length - 1; i > 0; i--) link(R[i], R[i - 1], -1);
+
+      const finalCard = inner.querySelector(".br2-center .bracket-match");
+      const sfLcard = cardsIn(L[L.length - 1])[0];
+      const sfRcard = cardsIn(R[0])[0];
+      if (finalCard && sfLcard) elbow(sfLcard, finalCard, +1);
+      if (finalCard && sfRcard) elbow(sfRcard, finalCard, -1);
     }
 
     function bracketMatchHtml(m) {
@@ -236,6 +290,7 @@
     // ── Init ──────────────────────────────────────────────────────
     loadStandings();
     setInterval(loadStandings, 120_000); // refresh every 2 min
+    window.addEventListener("resize", () => { if (bracketLoaded) requestAnimationFrame(drawConnectors); });
   </script>
 </body>
 </html>
