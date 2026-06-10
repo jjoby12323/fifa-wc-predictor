@@ -22,6 +22,7 @@ async def get_leaderboard(
             func.coalesce(func.sum(Score.base_points), 0).label("base"),
             func.coalesce(func.sum(Score.streak_bonus), 0).label("streak"),
             func.coalesce(func.sum(Score.perfect_round_bonus), 0).label("perfect"),
+            func.coalesce(func.sum(Score.participation_bonus), 0).label("participation"),
         )
         .outerjoin(Score, Score.user_id == User.id)
         .group_by(User.id)
@@ -38,6 +39,7 @@ async def get_leaderboard(
             base=row.base,
             streak=row.streak,
             perfect=row.perfect,
+            participation=row.participation,
         )
         for idx, row in enumerate(entries)
     ]

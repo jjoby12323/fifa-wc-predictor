@@ -113,6 +113,7 @@ async def get_me(
             base_points=score.base_points,
             streak_bonus=score.streak_bonus,
             perfect_round_bonus=score.perfect_round_bonus,
+            participation_bonus=score.participation_bonus,
             total=score.total,
         )
         for score, match in rows

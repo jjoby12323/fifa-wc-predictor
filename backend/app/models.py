@@ -86,6 +86,7 @@ class Score(Base):
     base_points: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     streak_bonus: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     perfect_round_bonus: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    participation_bonus: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     user: Mapped["User"] = relationship("User", back_populates="scores")
@@ -167,6 +168,7 @@ class ScoreRow(BaseModel):
     base_points: int
     streak_bonus: int
     perfect_round_bonus: int
+    participation_bonus: int
     total: int
 
 
@@ -178,6 +180,7 @@ class LeaderboardEntry(BaseModel):
     base: int
     streak: int
     perfect: int
+    participation: int
 
 
 class SettleRequest(BaseModel):

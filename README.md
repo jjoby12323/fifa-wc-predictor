@@ -6,7 +6,7 @@ A team prediction game for the 2026 FIFA World Cup. Each person gets a signed pe
 
 - Predict match winners (not scores)
 - Voting closes automatically at kickoff (server-enforced)
-- Points: base × stage multiplier + streak bonus + perfect round bonus
+- Points: base × stage multiplier + streak bonus + perfect round bonus + participation bonus
 - Tamper-resistant: signed URLs, all scoring server-side, DB-level uniqueness constraints
 - Auto-settles results via football-data.org API (or manual admin override)
 - Chat widget on every page for smack talk
@@ -24,6 +24,7 @@ A team prediction game for the 2026 FIFA World Cup. Each person gets a signed pe
 | Correct prediction (Final) | 5 |
 | Streak bonus (every 3 in a row) | +1 |
 | Perfect matchday (all correct) | +2 |
+| Participation (every 3 matches voted on) | +1 |
 
 ## Setup
 

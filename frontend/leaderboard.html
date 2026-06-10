@@ -27,6 +27,7 @@
             <th title="Base points from correct predictions">Base</th>
             <th title="+1 per 3 consecutive correct">Streak 🔥</th>
             <th title="+2 for a perfect matchday">Perfect ⭐</th>
+            <th title="+1 for every 3 matches you vote on">Turnout 🙌</th>
           </tr>
         </thead>
         <tbody id="leaderboard-body"></tbody>
@@ -41,6 +42,7 @@
               <th>Base</th>
               <th>Streak</th>
               <th>Perfect</th>
+              <th>Turnout</th>
               <th>Total</th>
             </tr>
           </thead>
@@ -126,6 +128,7 @@
           <td>${row.base}</td>
           <td>${row.streak || "—"}</td>
           <td>${row.perfect || "—"}</td>
+          <td>${row.participation || "—"}</td>
         `;
         tbody.appendChild(tr);
       }
@@ -144,6 +147,7 @@
                 <td>${r.base_points}</td>
                 <td>${r.streak_bonus || "—"}</td>
                 <td>${r.perfect_round_bonus || "—"}</td>
+                <td>${r.participation_bonus || "—"}</td>
                 <td><strong>${r.total}</strong></td>
               `;
               bbody.appendChild(tr);

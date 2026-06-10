@@ -32,10 +32,11 @@ class ScoreBreakdown(NamedTuple):
     base_points: int
     streak_bonus: int
     perfect_round_bonus: int
+    participation_bonus: int
 
     @property
     def total(self) -> int:
-        return self.base_points + self.streak_bonus + self.perfect_round_bonus
+        return self.base_points + self.streak_bonus + self.perfect_round_bonus + self.participation_bonus
 
 
 def compute_base_points(prediction: str, match: MatchData) -> int:
@@ -62,6 +63,25 @@ def compute_streak_bonus_per_match(votes: list[VoteData], matches: dict[int, Mat
                 bonuses[vote.match_id] = bonuses.get(vote.match_id, 0) + 1
         else:
             streak = 0
+    return bonuses
+
+
+def compute_participation_bonus_per_match(votes: list[VoteData], matches: dict[int, MatchData]) -> dict[int, int]:
+    """
+    Returns {match_id: participation_bonus}. +1 for every 3 matches a user has
+    voted on (settled only), regardless of whether the pick was correct — awarded
+    on the match that completes each group of 3, chronologically.
+    """
+    ordered = sorted(
+        [(v, matches[v.match_id]) for v in votes if v.match_id in matches],
+        key=lambda x: x[1].kickoff_utc,
+    )
+    bonuses: dict[int, int] = {v.match_id: 0 for v in votes}
+    count = 0
+    for vote, _match in ordered:
+        count += 1
+        if count % 3 == 0:
+            bonuses[vote.match_id] = bonuses.get(vote.match_id, 0) + 1
     return bonuses
 
 
@@ -100,6 +120,7 @@ def compute_all_scores(
     settled_votes = [v for v in votes if v.match_id in all_settled_matches]
 
     streak_bonuses = compute_streak_bonus_per_match(settled_votes, all_settled_matches)
+    participation_bonuses = compute_participation_bonus_per_match(settled_votes, all_settled_matches)
 
     votes_by_matchday: dict[int, list[VoteData]] = {}
     matches_by_matchday: dict[int, list[MatchData]] = {}
@@ -117,5 +138,6 @@ def compute_all_scores(
             base_points=compute_base_points(v.prediction, m),
             streak_bonus=streak_bonuses.get(v.match_id, 0),
             perfect_round_bonus=perfect_bonuses.get(v.match_id, 0),
+            participation_bonus=participation_bonuses.get(v.match_id, 0),
         )
     return result

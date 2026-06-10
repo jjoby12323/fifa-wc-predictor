@@ -58,6 +58,7 @@ def upgrade() -> None:
         sa.Column("base_points", sa.Integer, nullable=False, server_default="0"),
         sa.Column("streak_bonus", sa.Integer, nullable=False, server_default="0"),
         sa.Column("perfect_round_bonus", sa.Integer, nullable=False, server_default="0"),
+        sa.Column("participation_bonus", sa.Integer, nullable=False, server_default="0"),
         sa.Column("total", sa.Integer, nullable=False, server_default="0"),
         sa.UniqueConstraint("user_id", "match_id"),
     )
