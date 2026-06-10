@@ -93,9 +93,12 @@ def compute_perfect_round_bonus(
     Returns {match_id: perfect_round_bonus}.
     +2 awarded on the last match of the matchday if all predictions were correct.
     Only evaluated once all matches in the matchday are settled.
+    Single-match days (e.g. the Final) don't qualify — a sweep needs 2+ matches.
     """
     bonuses: dict[int, int] = {}
     for matchday, day_matches in matches_by_matchday.items():
+        if len(day_matches) <= 1:
+            continue  # a single-match day isn't a sweep — no perfect bonus
         if any(m.result is None for m in day_matches):
             continue
         day_votes = votes_by_matchday.get(matchday, [])

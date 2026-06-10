@@ -23,7 +23,7 @@ A team prediction game for the 2026 FIFA World Cup. Each person gets a signed pe
 | Correct prediction (SF) | 4 |
 | Correct prediction (Final) | 5 |
 | Streak bonus (every 3 in a row) | +1 |
-| Perfect matchday (all correct) | +2 |
+| Perfect matchday (all correct, 2+ matches) | +2 |
 | Participation (every 3 matches voted on) | +1 |
 
 ## Setup
