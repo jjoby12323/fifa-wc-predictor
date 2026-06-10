@@ -31,6 +31,9 @@ LEADERBOARD_HOUR_IST = int(os.getenv("SLACK_LEADERBOARD_HOUR_IST", "9"))
 # Keeps the scheduler (every 5 min) from missing it, without replaying old events.
 ANNOUNCE_WINDOW = timedelta(minutes=60)
 
+# Set once per process after the ledger is primed (see prime_sent_notifications).
+_primed = False
+
 
 def _now() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
@@ -61,6 +64,28 @@ def _matches_by_matchday(matches: list[Match]) -> dict[int, list[Match]]:
     for m in matches:
         by_md.setdefault(m.matchday, []).append(m)
     return by_md
+
+
+# ── Priming (backfill ledger on startup so restarts/DB resets don't replay) ────
+
+async def prime_sent_notifications(db) -> None:
+    """
+    Mark every already-open matchday and past-due reminder as 'already sent'
+    WITHOUT posting. The dedup ledger lives in the DB, so a restart or a DB reset
+    would otherwise re-announce events still inside ANNOUNCE_WINDOW. Priming
+    rebuilds that 'seen' state from the schedule, so only events that cross their
+    trigger AFTER startup actually post. No-op on a normal restart (keys already
+    present); the safety net is for a wiped DB.
+    """
+    now = _now()
+    matches = (await db.execute(select(Match))).scalars().all()
+    for md, ms in _matches_by_matchday(matches).items():
+        polls_open = min(m.polls_open_utc for m in ms)
+        reminder_at = min(m.kickoff_utc for m in ms) - timedelta(hours=REMINDER_HOURS_BEFORE)
+        if polls_open <= now and not await _already_sent(db, f"polls_open:md={md}"):
+            await _mark_sent(db, f"polls_open:md={md}")
+        if reminder_at <= now and not await _already_sent(db, f"reminder:md={md}"):
+            await _mark_sent(db, f"reminder:md={md}")
 
 
 # ── Polls open ───────────────────────────────────────────────────────────────
@@ -166,9 +191,17 @@ async def post_daily_leaderboard(db) -> None:
 # ── Scheduler entry points (sync wrappers run in BackgroundScheduler threads) ────
 
 async def _notifications_tick() -> None:
+    global _primed
     async with SessionLocal() as db:
         try:
+            if not _primed:
+                await prime_sent_notifications(db)
+                await db.commit()
+                _primed = True
+            # Commit after each step so a later failure can't roll back a mark
+            # for a message that was already posted.
             await announce_polls_open(db)
+            await db.commit()
             await send_vote_reminders(db)
             await db.commit()
         except Exception:
