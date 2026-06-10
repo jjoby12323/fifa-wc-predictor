@@ -68,7 +68,6 @@ async def settle_match(
                 match_id=match_id,
                 base_points=bd.base_points,
                 streak_bonus=bd.streak_bonus,
-                upset_bonus=bd.upset_bonus,
                 perfect_round_bonus=bd.perfect_round_bonus,
                 total=bd.total,
             ))

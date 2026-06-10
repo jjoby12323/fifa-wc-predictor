@@ -4,6 +4,10 @@ Revision ID: 0001
 Revises:
 Create Date: 2026-06-05
 
+Single consolidated schema (users, matches, votes, scores, messages,
+sent_notifications). There is intentionally only one migration — the app has no
+released data, so earlier migrations were squashed into this one.
+
 """
 from typing import Sequence, Union
 from alembic import op
@@ -53,14 +57,29 @@ def upgrade() -> None:
         sa.Column("match_id", sa.Integer, sa.ForeignKey("matches.id"), nullable=False),
         sa.Column("base_points", sa.Integer, nullable=False, server_default="0"),
         sa.Column("streak_bonus", sa.Integer, nullable=False, server_default="0"),
-        sa.Column("upset_bonus", sa.Integer, nullable=False, server_default="0"),
         sa.Column("perfect_round_bonus", sa.Integer, nullable=False, server_default="0"),
         sa.Column("total", sa.Integer, nullable=False, server_default="0"),
         sa.UniqueConstraint("user_id", "match_id"),
     )
+    op.create_table(
+        "messages",
+        sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
+        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("content", sa.String, nullable=False),
+        sa.Column("created_at", sa.DateTime, nullable=False),
+    )
+    op.create_table(
+        "sent_notifications",
+        sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
+        sa.Column("key", sa.String, nullable=False),
+        sa.Column("sent_at", sa.DateTime, nullable=False),
+        sa.UniqueConstraint("key", name="uq_sent_notifications_key"),
+    )
 
 
 def downgrade() -> None:
+    op.drop_table("sent_notifications")
+    op.drop_table("messages")
     op.drop_table("scores")
     op.drop_table("votes")
     op.drop_table("matches")

@@ -30,28 +30,17 @@ class VoteData(NamedTuple):
 
 class ScoreBreakdown(NamedTuple):
     base_points: int
-    upset_bonus: int
     streak_bonus: int
     perfect_round_bonus: int
 
     @property
     def total(self) -> int:
-        return self.base_points + self.upset_bonus + self.streak_bonus + self.perfect_round_bonus
+        return self.base_points + self.streak_bonus + self.perfect_round_bonus
 
 
 def compute_base_points(prediction: str, match: MatchData) -> int:
     if prediction == match.result:
         return STAGE_MULTIPLIER.get(match.stage, 1)
-    return 0
-
-
-def compute_upset_bonus(prediction: str, match: MatchData) -> int:
-    if prediction != match.result:
-        return 0
-    if match.result == "team_a" and match.fifa_rank_a > match.fifa_rank_b:
-        return 1
-    if match.result == "team_b" and match.fifa_rank_b > match.fifa_rank_a:
-        return 1
     return 0
 
 
@@ -126,7 +115,6 @@ def compute_all_scores(
         m = all_settled_matches[v.match_id]
         result[v.match_id] = ScoreBreakdown(
             base_points=compute_base_points(v.prediction, m),
-            upset_bonus=compute_upset_bonus(v.prediction, m),
             streak_bonus=streak_bonuses.get(v.match_id, 0),
             perfect_round_bonus=perfect_bonuses.get(v.match_id, 0),
         )

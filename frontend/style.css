@@ -251,7 +251,7 @@ main { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
 }
 .btn-vote.underdog:hover { background: #6d28d9; }
 
-.upset-hint {
+.underdog-hint {
   font-size: 0.72rem;
   color: #a78bfa;
   padding-left: 2px;

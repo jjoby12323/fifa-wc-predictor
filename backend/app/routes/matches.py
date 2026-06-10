@@ -112,7 +112,6 @@ async def get_me(
             match_label=match.match_label,
             base_points=score.base_points,
             streak_bonus=score.streak_bonus,
-            upset_bonus=score.upset_bonus,
             perfect_round_bonus=score.perfect_round_bonus,
             total=score.total,
         )

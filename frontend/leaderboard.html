@@ -26,7 +26,6 @@
             <th title="Total points">Total</th>
             <th title="Base points from correct predictions">Base</th>
             <th title="+1 per 3 consecutive correct">Streak 🔥</th>
-            <th title="+1 for predicting an underdog win">Upset 😮</th>
             <th title="+2 for a perfect matchday">Perfect ⭐</th>
           </tr>
         </thead>
@@ -41,7 +40,6 @@
               <th>Match</th>
               <th>Base</th>
               <th>Streak</th>
-              <th>Upset</th>
               <th>Perfect</th>
               <th>Total</th>
             </tr>
@@ -127,7 +125,6 @@
           <td class="total"><strong>${row.total}</strong></td>
           <td>${row.base}</td>
           <td>${row.streak || "—"}</td>
-          <td>${row.upset || "—"}</td>
           <td>${row.perfect || "—"}</td>
         `;
         tbody.appendChild(tr);
@@ -146,7 +143,6 @@
                 <td>${escHtml(r.match_label)}</td>
                 <td>${r.base_points}</td>
                 <td>${r.streak_bonus || "—"}</td>
-                <td>${r.upset_bonus || "—"}</td>
                 <td>${r.perfect_round_bonus || "—"}</td>
                 <td><strong>${r.total}</strong></td>
               `;

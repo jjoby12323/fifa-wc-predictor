@@ -134,8 +134,8 @@
 
       let actionHtml = "";
       if (m.status === "open" && !m.my_vote) {
-        const underdogA = m.underdog === "team_a" ? `<span class="upset-hint" title="Lower-ranked team — correct pick earns +1 upset bonus">⚡ Upset bonus if wins</span>` : "";
-        const underdogB = m.underdog === "team_b" ? `<span class="upset-hint" title="Lower-ranked team — correct pick earns +1 upset bonus">⚡ Upset bonus if wins</span>` : "";
+        const underdogA = m.underdog === "team_a" ? `<span class="underdog-hint" title="Lower FIFA-ranked side">⚡ Underdog</span>` : "";
+        const underdogB = m.underdog === "team_b" ? `<span class="underdog-hint" title="Lower FIFA-ranked side">⚡ Underdog</span>` : "";
         actionHtml = `
           <div class="vote-buttons">
             <div class="vote-option">

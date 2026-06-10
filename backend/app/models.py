@@ -85,7 +85,6 @@ class Score(Base):
     match_id: Mapped[int] = mapped_column(Integer, ForeignKey("matches.id"), nullable=False)
     base_points: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     streak_bonus: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    upset_bonus: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     perfect_round_bonus: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
@@ -167,7 +166,6 @@ class ScoreRow(BaseModel):
     match_label: str
     base_points: int
     streak_bonus: int
-    upset_bonus: int
     perfect_round_bonus: int
     total: int
 
@@ -179,7 +177,6 @@ class LeaderboardEntry(BaseModel):
     total: int
     base: int
     streak: int
-    upset: int
     perfect: int
 
 
