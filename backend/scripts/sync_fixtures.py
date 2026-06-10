@@ -15,7 +15,6 @@ from datetime import datetime, timedelta
 import httpx
 from dotenv import load_dotenv
 from sqlalchemy import select
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 load_dotenv()
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))

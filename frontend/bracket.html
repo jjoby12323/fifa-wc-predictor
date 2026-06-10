@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FIFA WC 2026 — Standings & Bracket</title>
-  <link rel="stylesheet" href="style.css?v=9" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
@@ -38,7 +38,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=2"></script>
+  <script src="app.js"></script>
   <script>
     // ── Auth passthrough ──────────────────────────────────────────
     const { user, sig } = getAuth();
@@ -89,9 +89,6 @@
         for (const g of data.groups) {
           const card = document.createElement("div");
           card.className = "group-card";
-
-          const qualifiers = g.table.slice(0, 2).map(r => r.team);
-
           card.innerHTML = `
             <h3 class="group-title">${escHtml(g.group)}</h3>
             <table class="standings-table">

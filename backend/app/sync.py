@@ -139,9 +139,15 @@ def start_result_scheduler():
 
     if have_slack:
         _scheduler.add_job(notifications.run_notifications_job, "interval", minutes=5, id="slack_notifications")
-        hh, mm = notifications.leaderboard_cron_utc()
-        _scheduler.add_job(notifications.run_daily_leaderboard_job, "cron", hour=hh, minute=mm, id="slack_leaderboard")
-        logger.info("Slack notifications enabled (reminders every 5 min; daily leaderboard at %02d:%02d UTC).", hh, mm)
+        # Explicit timezone so the daily post fires at the right wall-clock time on
+        # any host (APScheduler otherwise defaults to the machine's local timezone).
+        _scheduler.add_job(
+            notifications.run_daily_leaderboard_job, "cron",
+            hour=notifications.LEADERBOARD_HOUR, minute=0,
+            timezone=notifications.LEADERBOARD_TZ, id="slack_leaderboard",
+        )
+        logger.info("Slack notifications enabled (reminders every 5 min; daily leaderboard at %02d:00 %s).",
+                    notifications.LEADERBOARD_HOUR, notifications.LEADERBOARD_TZ)
 
     _scheduler.start()
 

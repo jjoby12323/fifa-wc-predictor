@@ -26,7 +26,8 @@ logger = logging.getLogger(__name__)
 
 IST_OFFSET = timedelta(hours=5, minutes=30)
 REMINDER_HOURS_BEFORE = int(os.getenv("SLACK_REMINDER_HOURS_BEFORE", "3"))
-LEADERBOARD_HOUR_IST = int(os.getenv("SLACK_LEADERBOARD_HOUR_IST", "9"))
+LEADERBOARD_HOUR = int(os.getenv("SLACK_LEADERBOARD_HOUR_IST", "9"))   # hour-of-day in LEADERBOARD_TZ
+LEADERBOARD_TZ = os.getenv("SLACK_LEADERBOARD_TZ", "Asia/Kolkata")     # the daily post fires at this wall-clock time
 # A time-triggered event only fires if "now" is within this window past its trigger.
 # Keeps the scheduler (every 5 min) from missing it, without replaying old events.
 ANNOUNCE_WINDOW = timedelta(minutes=60)
@@ -41,12 +42,6 @@ def _now() -> datetime:
 
 def _ist_date_label(dt: datetime) -> str:
     return (dt + IST_OFFSET).strftime("%a, %b %d")
-
-
-def leaderboard_cron_utc() -> tuple[int, int]:
-    """The configured IST leaderboard hour, expressed as (hour, minute) UTC."""
-    total = (LEADERBOARD_HOUR_IST * 60 - int(IST_OFFSET.total_seconds() // 60)) % (24 * 60)
-    return total // 60, total % 60
 
 
 async def _already_sent(db, key: str) -> bool:

@@ -4,25 +4,31 @@ A team prediction game for the 2026 FIFA World Cup. Each person gets a signed pe
 
 ## Features
 
-- Predict match winners (not scores)
-- Voting closes automatically at kickoff (server-enforced)
-- Points: base × stage multiplier + streak bonus + perfect round bonus + participation bonus
+- Predict match winners (not scores); change or remove your pick any time before kickoff
+- Voting opens 48h before a matchday and closes automatically at kickoff (server-enforced)
+- Points: base × stage multiplier + streak bonus + perfect-matchday bonus + participation bonus
+- Predictions paginated by day — you land on what's live (open voting + the latest results)
 - Tamper-resistant: signed URLs, all scoring server-side, DB-level uniqueness constraints
 - Auto-settles results via football-data.org API (or manual admin override)
-- Chat widget on every page for smack talk
+- Knockout bracket + live group standings on a dedicated page
+- Optional Slack bot: polls-open reminders, vote nudges, match results, daily leaderboard
+- Chat widget on every page for smack talk, with a new-message popup
 - Click any name on the leaderboard to view their prediction history
 - Swap-ready frontend: replace `frontend/` with a React app, API contract stays the same
 
 ## Scoring
 
+Base points scale by stage (48-team format includes a Round of 32):
+
 | Category | Points |
 |----------|--------|
 | Correct prediction (Group) | 1 |
-| Correct prediction (R16) | 2 |
-| Correct prediction (QF) | 3 |
-| Correct prediction (SF) | 4 |
-| Correct prediction (Final) | 5 |
-| Streak bonus (every 3 in a row) | +1 |
+| Correct prediction (Round of 32) | 2 |
+| Correct prediction (Round of 16) | 3 |
+| Correct prediction (Quarter-Final) | 4 |
+| Correct prediction (Semi-Final) | 5 |
+| Correct prediction (Final) | 6 |
+| Streak bonus (every 3 correct in a row) | +1 |
 | Perfect matchday (all correct, 2+ matches) | +2 |
 | Participation (every 3 matches voted on) | +1 |
 
@@ -64,8 +70,9 @@ ALLOWED_ORIGINS=*
 SLACK_WEBHOOK_URL=
 
 # Optional Slack tuning (defaults shown):
-# SLACK_REMINDER_HOURS_BEFORE=3   # hours before a matchday's first kickoff to nudge non-voters
-# SLACK_LEADERBOARD_HOUR_IST=9    # daily standings post time, in IST
+# SLACK_REMINDER_HOURS_BEFORE=3       # hours before a matchday's first kickoff to nudge non-voters
+# SLACK_LEADERBOARD_HOUR_IST=9        # daily standings post — hour of day in SLACK_LEADERBOARD_TZ
+# SLACK_LEADERBOARD_TZ=Asia/Kolkata   # timezone for the daily post (IANA name)
 ```
 
 ### 3. Run migrations
@@ -210,15 +217,20 @@ npm create vite@latest frontend -- --template react
 
 ## API Reference
 
-All endpoints require `?user=NAME&sig=HMAC` except `/api/chat` (read) and admin routes.
+All endpoints require `?user=NAME&sig=HMAC` except `/api/chat` (read), `/api/standings`, `/api/bracket`, and admin routes.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/matches` | All matches + your vote + status |
-| `POST` | `/api/vote` | Submit a prediction |
+| `GET` | `/api/whoami` | Your display name (validates your link) |
+| `GET` | `/api/matches` | Votable matches + your vote + status |
+| `GET` | `/api/matches/{id}` | One match's detail + all participants' picks (hidden until kickoff) |
+| `POST` | `/api/vote` | Submit or change a prediction (before kickoff) |
+| `DELETE` | `/api/vote?match_id=N` | Remove your prediction (before kickoff) |
 | `GET` | `/api/leaderboard` | Ranked scores for all players |
 | `GET` | `/api/me` | Your per-match score breakdown |
 | `GET` | `/api/users/{username}/history` | Any player's prediction history |
+| `GET` | `/api/standings` | Live group standings via football-data.org (no auth) |
+| `GET` | `/api/bracket` | Knockout-stage matches for the bracket (no auth) |
 | `GET` | `/api/chat` | Last 50 chat messages (no auth) |
 | `POST` | `/api/chat` | Post a chat message |
 | `POST` | `/admin/settle` | Manually settle a match result |
