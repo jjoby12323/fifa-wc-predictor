@@ -10,6 +10,7 @@ A team prediction game for the 2026 FIFA World Cup. Each person gets a signed pe
 - Predictions paginated by day — you land on what's live (open voting + the latest results)
 - Tamper-resistant: signed URLs, all scoring server-side, DB-level uniqueness constraints
 - Auto-settles results via football-data.org API (or manual admin override)
+- Auto-refreshes fixtures every 6h — fills in knockout teams and schedule changes (no manual re-sync once seeded)
 - Knockout bracket + live group standings on a dedicated page
 - Optional Slack bot: polls-open reminders, vote nudges, match results, daily leaderboard
 - Chat widget on every page for smack talk, with a new-message popup
@@ -94,7 +95,7 @@ Akanksha Goel
 ### 5. Sync fixtures and generate links
 
 ```bash
-# Pull WC2026 schedule from football-data.org
+# Pull WC2026 schedule from football-data.org (one-time seed)
 python -m scripts.sync_fixtures
 
 # Create users and print one signed URL per person
@@ -102,6 +103,10 @@ python -m scripts.generate_links
 ```
 
 Copy each person's link and send it to them privately (Slack DM, WhatsApp, etc.).
+
+`sync_fixtures` is a **one-time seed** — once the server is running it re-syncs fixtures
+itself every 6 hours (filling knockout teams and schedule changes), and settles results
+every 10 minutes. No recurring manual runs are needed during the tournament.
 
 ### 6. Start the server
 

@@ -1,6 +1,8 @@
 """
-Background scheduler: every 10 minutes, poll football-data.org for results
-of matches that kicked off >2 hours ago and auto-settle them.
+Background scheduler:
+  • every 10 min — poll football-data.org and auto-settle finished matches
+  • every 6h — refresh fixtures (fills knockout teams, picks up schedule changes)
+  • Slack notification jobs (see app/notifications.py)
 """
 import asyncio
 import logging
@@ -16,6 +18,7 @@ from app.models import Match, Vote, Score, User
 from app.scoring import compute_all_scores, MatchData, VoteData
 from app import slack, notifications
 from app.notifications import announce_match_result
+from app.fixtures import sync_fixtures
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +126,19 @@ async def _recompute_scores(db):
             ))
 
 
+def _sync_fixtures_job():
+    asyncio.run(_async_sync_fixtures())
+
+
+async def _async_sync_fixtures():
+    # Teams/schedule only — results stay owned by _sync_results_job (which recomputes scores).
+    try:
+        n = await sync_fixtures(set_results=False)
+        logger.info("Fixture sync: %d fixtures refreshed.", n)
+    except Exception:
+        logger.exception("Scheduled fixture sync failed")
+
+
 def start_result_scheduler():
     have_football = bool(FOOTBALLDATA_API_KEY)
     have_slack = slack.slack_enabled()
@@ -133,7 +149,8 @@ def start_result_scheduler():
 
     if have_football:
         _scheduler.add_job(_sync_results_job, "interval", minutes=10, id="sync_results")
-        logger.info("Result sync enabled (every 10 minutes).")
+        _scheduler.add_job(_sync_fixtures_job, "interval", hours=6, id="sync_fixtures")
+        logger.info("Result sync (every 10 min) + fixture sync (every 6h) enabled.")
     else:
         logger.info("FOOTBALLDATA_API_KEY not set — auto-settle disabled. Use POST /admin/settle manually.")
 
