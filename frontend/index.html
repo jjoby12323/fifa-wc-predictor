@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FIFA WC 2026 Predictor</title>
-  <link rel="stylesheet" href="style.css?v=2" />
+  <link rel="stylesheet" href="style.css?v=4" />
 </head>
 <body>
   <header>
@@ -139,11 +139,11 @@
         actionHtml = `
           <div class="vote-buttons">
             <div class="vote-option">
-              <button class="btn-vote ${m.underdog === 'team_a' ? 'underdog' : ''}" onclick="vote(${m.id}, 'team_a', '${user}', '${sig}')">Vote ${escHtml(m.team_a)}</button>
+              <button class="btn-vote" onclick="vote(${m.id}, 'team_a', '${user}', '${sig}')">Vote ${escHtml(m.team_a)}</button>
               ${underdogA}
             </div>
             <div class="vote-option">
-              <button class="btn-vote ${m.underdog === 'team_b' ? 'underdog' : ''}" onclick="vote(${m.id}, 'team_b', '${user}', '${sig}')">Vote ${escHtml(m.team_b)}</button>
+              <button class="btn-vote" onclick="vote(${m.id}, 'team_b', '${user}', '${sig}')">Vote ${escHtml(m.team_b)}</button>
               ${underdogB}
             </div>
           </div>`;
@@ -249,10 +249,10 @@
           <div class="mo-vote-section">
             <div class="mo-vote-title">${m.my_vote ? "Your pick — tap a team to change" : "Make your pick"}</div>
             <div class="mo-vote-btns">
-              <button type="button" class="mo-vote-btn ${pickedA ? "picked" : ""} ${isUnderdog("team_a") ? "underdog" : ""}" onclick="voteFromModal(${m.id}, 'team_a')">
+              <button type="button" class="mo-vote-btn ${pickedA ? "picked" : ""}" onclick="voteFromModal(${m.id}, 'team_a')">
                 ${pickedA ? "✓ " : ""}${escHtml(m.team_a)}
               </button>
-              <button type="button" class="mo-vote-btn ${pickedB ? "picked" : ""} ${isUnderdog("team_b") ? "underdog" : ""}" onclick="voteFromModal(${m.id}, 'team_b')">
+              <button type="button" class="mo-vote-btn ${pickedB ? "picked" : ""}" onclick="voteFromModal(${m.id}, 'team_b')">
                 ${pickedB ? "✓ " : ""}${escHtml(m.team_b)}
               </button>
             </div>

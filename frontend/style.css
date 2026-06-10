@@ -246,11 +246,6 @@ main { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
 .vote-buttons { display: flex; gap: 16px; flex-wrap: wrap; }
 .vote-option { display: flex; flex-direction: column; gap: 4px; }
 
-.btn-vote.underdog {
-  background: #7c3aed;
-}
-.btn-vote.underdog:hover { background: #6d28d9; }
-
 .underdog-hint {
   font-size: 0.72rem;
   color: #a78bfa;
@@ -376,7 +371,7 @@ main { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
 /* teams row — the hero section */
 .mo-teams-row {
   display: flex;
-  align-items: stretch;
+  align-items: flex-start;
   background: linear-gradient(160deg, #0f1923 0%, #161b22 60%, #0f1923 100%);
   border-bottom: 1px solid var(--border);
   padding: 28px 20px 24px;
@@ -404,8 +399,6 @@ main { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
   position: relative;
 }
 
-.mo-team:first-child { align-items: flex-end; text-align: right; }
-.mo-team:last-child  { align-items: flex-start; text-align: left; }
 
 .mo-flag-wrap {
   width: 72px; height: 52px;
@@ -476,7 +469,7 @@ main { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
   gap: 6px;
   flex-shrink: 0;
   width: 110px;
-  padding-top: 4px;
+  min-height: 52px;    /* = flag height: centres a short "VS" on the flag, taller result grows down */
 }
 
 .mo-vs {
@@ -681,10 +674,6 @@ main { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
   color: #fff;
 }
 .mo-vote-btn.picked:hover { background: var(--green-dark); }
-.mo-vote-btn.underdog:not(.picked) { border-color: #7c3aed; }
-.mo-vote-btn.underdog:not(.picked):hover { border-color: #8b5cf6; background: #211b3a; }
-.mo-vote-btn.underdog.picked { background: #7c3aed; border-color: #7c3aed; }
-.mo-vote-btn.underdog.picked:hover { background: #6d28d9; }
 .mo-revoke-btn {
   background: transparent;
   color: var(--muted);
@@ -1137,7 +1126,7 @@ main { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
   .mo-teams-row { padding: 20px 14px 18px; }
   .mo-team-name { font-size: 0.9rem; max-width: 90px; }
   .mo-flag-wrap { width: 56px; height: 40px; }
-  .mo-vs-col { width: 80px; }
+  .mo-vs-col { width: 80px; min-height: 40px; }
 
   .mo-split-col { padding: 12px; }
   .mo-pred-section { padding: 16px 16px 20px; }
