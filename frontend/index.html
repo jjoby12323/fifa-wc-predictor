@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FIFA WC 2026 Predictor</title>
-  <link rel="stylesheet" href="style.css?v=7" />
+  <link rel="stylesheet" href="style.css?v=9" />
 </head>
 <body>
   <header>
@@ -73,6 +73,27 @@
       setInterval(loadMatches, 60_000);
     })();
 
+    // Landing = a rolling "Now" view: the latest completed matchday (results) on
+    // top, then every matchday currently open for voting. Re-derived from match
+    // status each load, so it slides forward on its own. The dropdown reaches any
+    // specific day (the archive).
+    let allByDate = {}, sortedDates = [], view = "now";
+
+    function localDateKey(d) {
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    }
+    function dayLabel(dk) {
+      const [y, mo, da] = dk.split("-").map(Number);
+      return new Date(y, mo - 1, da).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+    }
+    function dayStatus(dk) {
+      const ms = allByDate[dk] || [];
+      return {
+        hasOpen: ms.some(m => m.status === "open"),
+        allSettled: ms.length > 0 && ms.every(m => m.status === "settled"),
+      };
+    }
+
     async function loadMatches() {
       const { user, sig } = getAuth();
       let matches;
@@ -83,40 +104,66 @@
         document.getElementById("loading").classList.add("hidden");
         return;
       }
-
       document.getElementById("loading").classList.add("hidden");
 
-      // Group by LOCAL calendar date — kickoff_utc is UTC, but user sees their local date.
-      // e.g. 2026-06-11T19:00Z = Jun 12 00:30 IST, so it should sit under "Friday Jun 12".
-      const byDate = {};
+      // Group by LOCAL calendar date — kickoff_utc is UTC, but the user sees their own date.
+      allByDate = {};
       for (const m of matches) {
-        const raw = m.kickoff_utc.endsWith("Z") || m.kickoff_utc.includes("+")
-          ? m.kickoff_utc : m.kickoff_utc + "Z";
-        const d = new Date(raw);
-        // local date as sortable key
-        const dateKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-        (byDate[dateKey] = byDate[dateKey] || []).push(m);
+        const raw = m.kickoff_utc.endsWith("Z") || m.kickoff_utc.includes("+") ? m.kickoff_utc : m.kickoff_utc + "Z";
+        const dateKey = localDateKey(new Date(raw));
+        (allByDate[dateKey] = allByDate[dateKey] || []).push(m);
+      }
+      sortedDates = Object.keys(allByDate).sort();
+      if (view !== "now" && !sortedDates.includes(view)) view = "now";
+      render();
+    }
+
+    function render() {
+      const { user, sig } = getAuth();
+      const container = document.getElementById("matches-container");
+      if (!sortedDates.length) { container.innerHTML = `<p class="empty-note">No matches to show yet.</p>`; return; }
+
+      const todayKey = localDateKey(new Date());
+
+      // Which day-sections to render.
+      let sections;
+      if (view === "now") {
+        const votable = sortedDates.filter(dk => dayStatus(dk).hasOpen);
+        const completed = sortedDates.filter(dk => dayStatus(dk).allSettled);
+        sections = [];
+        if (completed.length) sections.push({ key: completed[completed.length - 1], tag: "Results" });
+        for (const dk of votable) sections.push({ key: dk, tag: "Open for voting" });
+        if (!sections.length) {  // nothing live — show the next upcoming day
+          sections.push({ key: sortedDates.find(dk => dk >= todayKey) || sortedDates[sortedDates.length - 1], tag: "Upcoming" });
+        }
+      } else {
+        const st = dayStatus(view);
+        sections = [{ key: view, tag: st.allSettled ? "Results" : st.hasOpen ? "Open for voting" : "Matches" }];
       }
 
-      const container = document.getElementById("matches-container");
-      container.innerHTML = "";
+      // "View" dropdown: Now + every day (with a status hint).
+      const tagFor = dk => { const s = dayStatus(dk); return s.allSettled ? " · done" : s.hasOpen ? " · open" : ""; };
+      const opts = [`<option value="now"${view === "now" ? " selected" : ""}> Now — vote &amp; latest result</option>`]
+        .concat(sortedDates.map(dk =>
+          `<option value="${dk}"${dk === view ? " selected" : ""}>${dayLabel(dk)}${dk === todayKey ? " · Today" : ""}${tagFor(dk)}</option>`))
+        .join("");
 
-      for (const [dateKey, dayMatches] of Object.entries(byDate)) {
+      container.innerHTML = `
+        <div class="day-pager">
+          <span class="day-view-label">View</span>
+          <select id="day-select" class="day-select">${opts}</select>
+        </div>`;
+
+      const tagClass = t => t === "Results" ? "md-tag-done" : t === "Open for voting" ? "md-tag-open" : "md-tag-soon";
+      for (const sec of sections) {
         const section = document.createElement("section");
         section.className = "matchday";
-        // dateKey is already the local date string, parse as local midnight
-        const [y, mo, d] = dateKey.split("-").map(Number);
-        const labelDate = new Date(y, mo - 1, d);
-        const dateLabel = labelDate.toLocaleDateString(undefined, {
-          weekday: "long", month: "short", day: "numeric"
-        });
-        section.innerHTML = `<h2><span class="date">${dateLabel}</span></h2>`;
-
-        for (const m of dayMatches) {
-          section.appendChild(renderMatchCard(m, user, sig));
-        }
+        section.innerHTML = `<h2><span class="md-tag ${tagClass(sec.tag)}">${sec.tag}</span><span class="date">${dayLabel(sec.key)}</span></h2>`;
+        for (const m of (allByDate[sec.key] || [])) section.appendChild(renderMatchCard(m, user, sig));
         container.appendChild(section);
       }
+
+      document.getElementById("day-select")?.addEventListener("change", e => { view = e.target.value; render(); });
     }
 
     function renderMatchCard(m, user, sig) {
