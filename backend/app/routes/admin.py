@@ -1,11 +1,13 @@
 import os
+import hmac
 from fastapi import APIRouter, Depends, HTTPException, Header
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.models import Match, Vote, Score, User, SettleRequest
 from app.scoring import compute_all_scores, MatchData, VoteData
+from app.slack import post_to_slack, slack_enabled
 
 router = APIRouter()
 
@@ -13,7 +15,7 @@ ADMIN_KEY = os.getenv("ADMIN_KEY", "")
 
 
 def require_admin(x_admin_key: str = Header(...)):
-    if not ADMIN_KEY or x_admin_key != ADMIN_KEY:
+    if not ADMIN_KEY or not hmac.compare_digest(x_admin_key, ADMIN_KEY):
         raise HTTPException(status_code=403, detail="Invalid admin key.")
 
 
@@ -85,9 +87,7 @@ async def reset_scores(
     """Wipe all votes, scores, and match results. Keeps users and fixtures."""
     await db.execute(delete(Score))
     await db.execute(delete(Vote))
-    await db.execute(
-        __import__("sqlalchemy", fromlist=["update"]).update(Match).values(result=None)
-    )
+    await db.execute(update(Match).values(result=None))
     await db.commit()
     return {"status": "reset", "cleared": ["votes", "scores", "match results"]}
 
@@ -109,7 +109,6 @@ async def reset_all(
 @router.post("/admin/slack-test")
 async def slack_test(_=Depends(require_admin)):
     """Fire a test message to verify SLACK_WEBHOOK_URL is wired up correctly."""
-    from app.slack import post_to_slack, slack_enabled
     if not slack_enabled():
         raise HTTPException(status_code=400, detail="SLACK_WEBHOOK_URL not set.")
     ok = await post_to_slack(":wave: Test from the FIFA WC 2026 Predictor bot — webhook is live!")

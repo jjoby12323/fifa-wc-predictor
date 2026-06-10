@@ -26,8 +26,8 @@ logger = logging.getLogger(__name__)
 
 IST_OFFSET = timedelta(hours=5, minutes=30)
 REMINDER_HOURS_BEFORE = int(os.getenv("SLACK_REMINDER_HOURS_BEFORE", "3"))
-LEADERBOARD_HOUR = int(os.getenv("SLACK_LEADERBOARD_HOUR_IST", "9"))   # hour-of-day in LEADERBOARD_TZ
-LEADERBOARD_TZ = os.getenv("SLACK_LEADERBOARD_TZ", "Asia/Kolkata")     # the daily post fires at this wall-clock time
+LEADERBOARD_HOUR = int(os.getenv("SLACK_LEADERBOARD_HOUR_IST", "9"))
+LEADERBOARD_TZ = os.getenv("SLACK_LEADERBOARD_TZ", "Asia/Kolkata")
 # A time-triggered event only fires if "now" is within this window past its trigger.
 # Keeps the scheduler (every 5 min) from missing it, without replaying old events.
 ANNOUNCE_WINDOW = timedelta(minutes=60)
@@ -91,7 +91,6 @@ async def announce_polls_open(db) -> None:
     for md, ms in _matches_by_matchday(matches).items():
         polls_open = min(m.polls_open_utc for m in ms)
         first_kick = min(m.kickoff_utc for m in ms)
-        # Just opened (within the window) and not yet kicked off.
         if not (polls_open <= now < polls_open + ANNOUNCE_WINDOW and now < first_kick):
             continue
         key = f"polls_open:md={md}"
@@ -130,7 +129,6 @@ async def send_vote_reminders(db) -> None:
         for v in votes:
             votes_by_user[v.user_id] = votes_by_user.get(v.user_id, 0) + 1
 
-        # Anyone who hasn't picked every match of the day still needs to vote.
         missing = [u.display_name for u in all_users if votes_by_user.get(u.id, 0) < len(ms)]
 
         if missing:

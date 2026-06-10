@@ -61,7 +61,7 @@ async def _async_sync_results():
                     resp = await client.get(f"{FD_BASE}/matches/{match.external_id}")
                     resp.raise_for_status()
                     data = resp.json()
-                except Exception as exc:
+                except (httpx.HTTPError, ValueError) as exc:
                     logger.warning("Failed to fetch result for match %s: %s", match.id, exc)
                     continue
 
@@ -80,7 +80,7 @@ async def _async_sync_results():
                 match.result = result
                 await db.flush()
                 await _recompute_scores(db)
-                await announce_match_result(db, match)  # Slack post (idempotent, no-op if disabled)
+                await announce_match_result(db, match)
 
         await db.commit()
 

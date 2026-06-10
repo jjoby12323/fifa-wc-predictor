@@ -25,7 +25,7 @@
     <div class="modal">
       <div class="modal-header">
         <h2 id="match-modal-title"></h2>
-        <button class="modal-close" onclick="closeMatchModal()">✕</button>
+        <button class="modal-close" aria-label="Close" onclick="closeMatchModal()">✕</button>
       </div>
       <div id="match-modal-body" class="modal-body"></div>
     </div>
@@ -56,7 +56,6 @@
         document.getElementById("loading").classList.add("hidden");
         return;
       }
-      // Fetch display name instead of showing the URL slug
       apiFetch(`/api/whoami?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`)
         .then(data => {
           document.getElementById("greeting").textContent = `Hello, ${data.display_name}!`;
@@ -73,10 +72,7 @@
       setInterval(loadMatches, 60_000);
     })();
 
-    // Landing = a rolling "Now" view: the latest completed matchday (results) on
-    // top, then every matchday currently open for voting. Re-derived from match
-    // status each load, so it slides forward on its own. The dropdown reaches any
-    // specific day (the archive).
+    // "Now" view: latest completed matchday (Results) + currently-votable days; re-derived from status each load. Dropdown reaches any day.
     let allByDate = {}, sortedDates = [], view = "now";
 
     function localDateKey(d) {
@@ -125,7 +121,6 @@
 
       const todayKey = localDateKey(new Date());
 
-      // Which day-sections to render.
       let sections;
       if (view === "now") {
         const votable = sortedDates.filter(dk => dayStatus(dk).hasOpen);
@@ -141,7 +136,6 @@
         sections = [{ key: view, tag: st.allSettled ? "Results" : st.hasOpen ? "Open for voting" : "Matches" }];
       }
 
-      // "View" dropdown: Now + every day (with a status hint).
       const tagFor = dk => { const s = dayStatus(dk); return s.allSettled ? " · done" : s.hasOpen ? " · open" : ""; };
       const opts = [`<option value="now"${view === "now" ? " selected" : ""}> Now — vote &amp; latest result</option>`]
         .concat(sortedDates.map(dk =>
@@ -186,11 +180,11 @@
         actionHtml = `
           <div class="vote-buttons">
             <div class="vote-option">
-              <button class="btn-vote" onclick="vote(${m.id}, 'team_a', '${user}', '${sig}')">Vote ${escHtml(m.team_a)}</button>
+              <button class="btn-vote" onclick="vote(${m.id}, 'team_a')">Vote ${escHtml(m.team_a)}</button>
               ${underdogA}
             </div>
             <div class="vote-option">
-              <button class="btn-vote" onclick="vote(${m.id}, 'team_b', '${user}', '${sig}')">Vote ${escHtml(m.team_b)}</button>
+              <button class="btn-vote" onclick="vote(${m.id}, 'team_b')">Vote ${escHtml(m.team_b)}</button>
               ${underdogB}
             </div>
           </div>`;
@@ -269,7 +263,6 @@
         ? `<img class="mo-flag" src="${flagB}" alt="${escHtml(m.team_b)} flag" onerror="this.style.display='none'">`
         : `<div class="mo-flag-placeholder">🏳</div>`;
 
-      // Split votes
       const votedA      = m.votes.filter(v => v.prediction === "team_a");
       const votedB      = m.votes.filter(v => v.prediction === "team_b");
       const votedHidden = m.votes.filter(v => v.prediction === "hidden");
@@ -283,7 +276,6 @@
         ? list.map(v => `<span class="mo-chip">${escHtml(v.display_name)}</span>`).join("")
         : `<span class="mo-chip-empty">—</span>`;
 
-      // Winner highlight
       const winnerA = m.result === "team_a";
       const winnerB = m.result === "team_b";
 
@@ -413,6 +405,7 @@
         document.getElementById("match-modal").classList.add("hidden");
       }
     }
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMatchModal(); });
 
     // ── Chat ──────────────────────────────────────────────────────
     let chatOpen = false;
@@ -488,7 +481,6 @@
       if (e.key === "Enter") sendMessage();
     });
 
-    // Show/hide input based on auth
     const { user: chatUser, sig: chatSig } = getAuth();
     if (!chatUser || !chatSig) {
       document.getElementById("chat-input-row").classList.add("hidden");
@@ -499,7 +491,8 @@
     setInterval(loadChat, 4_000);
 
     // ── Votes ──────────────────────────────────────────────────────
-    async function vote(matchId, prediction, user, sig) {
+    async function vote(matchId, prediction) {
+      const { user, sig } = getAuth();
       const errEl = document.getElementById(`err-${matchId}`);
       errEl.classList.add("hidden");
       try {
@@ -520,7 +513,6 @@
       if (e) { e.textContent = msg; e.classList.remove("hidden"); }
     }
 
-    // Cast or change a pick from inside the match modal.
     async function voteFromModal(matchId, prediction) {
       const { user, sig } = getAuth();
       try {
@@ -536,7 +528,6 @@
       }
     }
 
-    // Remove a pick from inside the match modal (allowed before kickoff).
     async function revokeFromModal(matchId) {
       const { user, sig } = getAuth();
       try {

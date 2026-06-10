@@ -41,7 +41,6 @@ async def submit_vote(
     )
     existing = existing_result.scalar_one_or_none()
 
-    # Changing a pick is allowed any time before kickoff — just update in place.
     if existing is not None:
         changed = existing.prediction != body.prediction
         existing.prediction = body.prediction
@@ -72,7 +71,7 @@ async def submit_vote(
     return {"status": "ok", "match_id": match.id, "prediction": body.prediction, "changed": False}
 
 
-@router.delete("/api/vote")
+@router.delete("/api/vote", status_code=204)
 async def revoke_vote(
     match_id: int,
     username: str = Depends(require_user),
@@ -101,4 +100,4 @@ async def revoke_vote(
 
     await db.delete(existing)
     await db.commit()
-    return {"status": "ok", "match_id": match_id}
+    return None

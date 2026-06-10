@@ -1,12 +1,11 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.auth import require_user
 from app.models import Match, Vote, User, MatchStatus, ScoreRow, Score, MatchDetail, MatchVoteEntry
-from fastapi import HTTPException
 
 router = APIRouter()
 
@@ -18,7 +17,6 @@ async def whoami(
     user_result = await db.execute(select(User).where(User.username == username))
     user = user_result.scalar_one_or_none()
     if user is None:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="User not found.")
     return {"username": user.username, "display_name": user.display_name}
 
@@ -43,7 +41,6 @@ async def get_matches(
     user_result = await db.execute(select(User).where(User.username == username))
     user = user_result.scalar_one_or_none()
     if user is None:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="User not found. Contact the admin.")
 
     # Only votable matches — knockout fixtures with undecided teams ("TBD") are
@@ -101,7 +98,6 @@ async def get_me(
     user_result = await db.execute(select(User).where(User.username == username))
     user = user_result.scalar_one_or_none()
     if user is None:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="User not found.")
 
     scores_result = await db.execute(
@@ -132,13 +128,11 @@ async def get_match_detail(
     username: str = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # Calling user
     user_result = await db.execute(select(User).where(User.username == username))
     user = user_result.scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=404, detail="User not found.")
 
-    # Match
     match_result = await db.execute(select(Match).where(Match.id == match_id))
     match = match_result.scalar_one_or_none()
     if match is None:
@@ -151,7 +145,6 @@ async def get_match_detail(
     if match.fifa_rank_a != match.fifa_rank_b:
         underdog = "team_a" if match.fifa_rank_a > match.fifa_rank_b else "team_b"
 
-    # All users and their votes for this match
     all_users_result = await db.execute(select(User).order_by(User.display_name))
     all_users = all_users_result.scalars().all()
 

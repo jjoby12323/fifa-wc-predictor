@@ -33,8 +33,9 @@ async def post_to_slack(text: str) -> bool:
             resp = await client.post(SLACK_WEBHOOK_URL, json={"text": text})
             resp.raise_for_status()
         return True
-    except Exception as exc:
-        logger.warning("Failed to post to Slack: %s", exc)
+    except httpx.HTTPError as exc:
+        # Don't log `exc` itself — httpx errors embed the (secret) webhook URL.
+        logger.warning("Slack post failed: %s", type(exc).__name__)
         return False
 
 

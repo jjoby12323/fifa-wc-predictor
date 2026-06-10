@@ -94,8 +94,6 @@ async def sync():
     sorted_dates = sorted({_ist_date(k) for (_, _, _, k) in parsed})
     matchday_of = {d: i + 1 for i, d in enumerate(sorted_dates)}
 
-    # Voting opens VOTING_WINDOW before each matchday's first kickoff — the same
-    # open time applies to every match in that matchday.
     first_kickoff: dict[int, datetime] = {}
     for (_, _, _, k) in parsed:
         md = matchday_of[_ist_date(k)]

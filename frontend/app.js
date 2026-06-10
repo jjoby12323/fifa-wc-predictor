@@ -157,6 +157,7 @@ async function apiFetch(path, options = {}) {
     } catch (_) {}
     throw new Error(msg);
   }
+  if (resp.status === 204) return null;   // no body (e.g. DELETE)
   return resp.json();
 }
 
@@ -192,7 +193,6 @@ function _ensureChatToast() {
         `<span class="chat-toast-name"></span>` +
         `<span class="chat-toast-text"></span>` +
       `</div>`;
-    // Clicking the toast opens the chat (if it's currently closed).
     t.addEventListener("click", () => {
       const icon = document.getElementById("chat-toggle-icon");
       const isOpen = icon && icon.textContent.trim() === "▼";

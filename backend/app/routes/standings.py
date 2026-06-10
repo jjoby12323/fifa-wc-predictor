@@ -43,7 +43,7 @@ async def get_standings():
             )
         resp.raise_for_status()
         raw = resp.json()
-    except Exception as exc:
+    except (httpx.HTTPError, ValueError) as exc:
         logger.warning("Failed to fetch standings: %s", exc)
         # Return stale cache if available
         return _standings_cache["data"] or {"groups": [], "error": "Upstream unavailable"}
