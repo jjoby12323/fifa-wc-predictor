@@ -312,9 +312,11 @@
         actionHtml = `<div class="mo-vote-locked">⏳ Voting opens ${poStr}</div>`;
       } else if (m.my_vote) {
         const votedFor = pickName(m, m.my_vote);
-        const mark = m.result
-          ? (m.my_vote === m.result ? ` <span class="mo-mark-ok">✓</span>` : ` <span class="mo-mark-no">✗</span>`)
-          : "";
+        const mark = !m.result
+          ? ""
+          : m.result === "draw"
+            ? ` <span class="mo-mark-draw">— draw</span>`
+            : (m.my_vote === m.result ? ` <span class="mo-mark-ok">✓</span>` : ` <span class="mo-mark-no">✗</span>`);
         actionHtml = `<div class="mo-vote-locked">🔒 Your pick: <strong>${escHtml(votedFor)}</strong>${mark}</div>`;
       } else {
         actionHtml = `<div class="mo-vote-locked">🔒 Voting closed — no pick made</div>`;

@@ -739,6 +739,7 @@ main { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
 .mo-vote-locked strong { color: var(--text); }
 .mo-mark-ok { color: #4caf7d; }
 .mo-mark-no { color: var(--red); }
+.mo-mark-draw { color: var(--muted); }
 
 /* ── Modal (profile / generic) table rows ───────────────────── */
 .modal-body tr.correct td { color: #4caf7d; }

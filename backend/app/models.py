@@ -159,7 +159,7 @@ class PredictionHistoryRow(BaseModel):
     prediction: Optional[str]       # None if they didn't vote
     result: Optional[str]           # None if not settled yet
     correct: Optional[bool]
-    points: int
+    points: float                   # fractional — a draw scores 0.5
 
 
 class ScoreRow(BaseModel):

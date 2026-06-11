@@ -85,7 +85,7 @@ def build_leaderboard_text(entries: list[dict], title: str = "Standings") -> str
     for e in entries:
         prefix = medals.get(e["rank"], f"`{e['rank']}.`")
         pts = e["total"]
-        lines.append(f"{prefix} {e['name']} — *{pts}* pt{'s' if pts != 1 else ''}")
+        lines.append(f"{prefix} {e['name']} — *{pts:g}* pt{'s' if pts != 1 else ''}")
     link = _leaderboard_link()
     if link:
         lines += ["", f"<{link}|Full leaderboard →>"]

@@ -64,7 +64,8 @@ async def get_matches(
         my_vote = vote_map.get(m.id)
         correct = None
         if status == "settled" and my_vote is not None:
-            correct = my_vote == m.result
+            # A draw is neutral — nobody could call it, so it's neither right nor wrong.
+            correct = None if m.result == "draw" else (my_vote == m.result)
 
         # Underdog = team with higher (worse) FIFA rank number
         if m.fifa_rank_a != m.fifa_rank_b:

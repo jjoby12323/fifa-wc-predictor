@@ -168,7 +168,7 @@ async def _leaderboard_entries(db) -> list[dict]:
         .order_by(func.coalesce(func.sum(Score.total), 0).desc(), User.display_name)
     )).all()
     return [
-        {"rank": idx + 1, "name": r.display_name, "total": int(r.total)}
+        {"rank": idx + 1, "name": r.display_name, "total": r.total}
         for idx, r in enumerate(rows)
     ]
 

@@ -39,7 +39,8 @@ async def get_user_history(
         prediction = vote_map.get(m.id)
         correct = None
         if m.result and prediction:
-            correct = prediction == m.result
+            # A draw is neutral — neither right nor wrong (shows as "—").
+            correct = None if m.result == "draw" else (prediction == m.result)
 
         rows.append(PredictionHistoryRow(
             match_id=m.id,
