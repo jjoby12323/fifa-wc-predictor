@@ -66,6 +66,8 @@ def build_reminder_text(date_label: str, names: list[str], hours_before: int) ->
 
 
 def build_result_text(team_a: str, team_b: str, result: str, rank_a: int, rank_b: int) -> str:
+    if result == "draw":
+        return f":soccer: Full time: *{team_a}* and *{team_b}* played out a draw. :handshake:"
     if result == "team_a":
         winner, loser, upset = team_a, team_b, rank_a > rank_b
     else:

@@ -17,8 +17,8 @@ async def submit_vote(
     username: str = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
-    if body.prediction not in ("team_a", "team_b"):
-        raise HTTPException(status_code=400, detail="prediction must be 'team_a' or 'team_b'")
+    if body.prediction not in ("team_a", "team_b", "draw"):
+        raise HTTPException(status_code=400, detail="prediction must be 'team_a', 'team_b', or 'draw'")
 
     user_result = await db.execute(select(User).where(User.username == username))
     user = user_result.scalar_one_or_none()
@@ -29,6 +29,10 @@ async def submit_vote(
     match = match_result.scalar_one_or_none()
     if match is None:
         raise HTTPException(status_code=404, detail="Match not found.")
+
+    # Knockout matches are decided by extra time / penalties — they can't end level.
+    if body.prediction == "draw" and match.stage != "group":
+        raise HTTPException(status_code=400, detail="Draws can only be predicted for group-stage matches.")
 
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     if now < match.polls_open_utc:

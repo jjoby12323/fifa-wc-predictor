@@ -29,8 +29,8 @@ async def settle_match(
     db: AsyncSession = Depends(get_db),
     _=Depends(require_admin),
 ):
-    if body.result not in ("team_a", "team_b"):
-        raise HTTPException(status_code=400, detail="result must be 'team_a' or 'team_b'")
+    if body.result not in ("team_a", "team_b", "draw"):
+        raise HTTPException(status_code=400, detail="result must be 'team_a', 'team_b', or 'draw'")
 
     match_result = await db.execute(select(Match).where(Match.id == body.match_id))
     match = match_result.scalar_one_or_none()

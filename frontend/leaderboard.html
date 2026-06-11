@@ -181,7 +181,7 @@
           <thead><tr><th>Match</th><th>Stage</th><th>Pick</th><th>Result</th><th>Pts</th></tr></thead>
           <tbody>
             ${history.map(r => {
-              const pickLabel = r.prediction ? (r.prediction === "team_a" ? r.match_label.split(" vs ")[0] : r.match_label.split(" vs ")[1]) : "—";
+              const pickLabel = !r.prediction ? "—" : r.prediction === "draw" ? "Draw" : r.prediction === "team_a" ? r.match_label.split(" vs ")[0] : r.match_label.split(" vs ")[1];
               const resultClass = r.correct === true ? "correct" : r.correct === false ? "wrong" : "";
               const resultIcon = r.correct === true ? "✓" : r.correct === false ? "✗" : "—";
               return `<tr class="${resultClass}">

@@ -4,7 +4,7 @@ A team prediction game for the 2026 FIFA World Cup. Each person gets a signed pe
 
 ## Features
 
-- Predict match winners (not scores); change or remove your pick any time before kickoff
+- Predict the winner — or a Draw in the group stage (not scores); change or remove your pick any time before kickoff
 - Voting opens 48h before a matchday and closes automatically at kickoff (server-enforced)
 - Points: base × stage multiplier + streak bonus + perfect-matchday bonus + participation bonus
 - Predictions paginated by day — you land on what's live (open voting + the latest results)
@@ -33,6 +33,8 @@ Base points scale by stage (48-team format includes a Round of 32):
 | Streak bonus (every 3 correct in a row) | +1 |
 | Perfect matchday (all correct, 2+ matches) | +2 |
 | Participation (every 3 matches voted on) | +1 |
+
+In the **group stage** you can also predict a **Draw** — worth the same as a correct winner pick. Knockout matches are always decided (extra time / penalties), so there's no draw option there.
 
 ## Setup
 

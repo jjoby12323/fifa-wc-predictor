@@ -55,7 +55,7 @@ class Match(Base):
     matchday: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     fifa_rank_a: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
     fifa_rank_b: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
-    # "team_a" | "team_b" | None (not yet settled)
+    # "team_a" | "team_b" | "draw" | None (not yet settled)
     result: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     votes: Mapped[list["Vote"]] = relationship("Vote", back_populates="match")
@@ -97,7 +97,7 @@ class Score(Base):
 
 class VoteRequest(BaseModel):
     match_id: int
-    prediction: str  # "team_a" or "team_b"
+    prediction: str  # "team_a", "team_b", or "draw" (draw is group-stage only)
 
 
 class MatchStatus(BaseModel):

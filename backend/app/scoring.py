@@ -19,7 +19,7 @@ class MatchData(NamedTuple):
     matchday: int
     fifa_rank_a: int
     fifa_rank_b: int
-    result: str  # "team_a" or "team_b"
+    result: str  # "team_a", "team_b", or "draw"
     kickoff_utc: object
 
 
