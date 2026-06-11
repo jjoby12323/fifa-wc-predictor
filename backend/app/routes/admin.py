@@ -7,7 +7,7 @@ from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
-from app.models import Match, Vote, Score, User, Message, SettleRequest
+from app.models import Match, Vote, Score, User, Message, SettleRequest, AnnounceRequest
 from app.scoring import compute_all_scores, MatchData, VoteData
 from app.slack import post_to_slack, slack_enabled
 
@@ -116,6 +116,20 @@ async def slack_test(_=Depends(require_admin)):
     if not slack_enabled():
         raise HTTPException(status_code=400, detail="SLACK_WEBHOOK_URL not set.")
     ok = await post_to_slack(":wave: Test from the FIFA WC 2026 Predictor bot — webhook is live!")
+    return {"status": "ok" if ok else "failed"}
+
+
+@router.post("/admin/announce")
+async def announce(body: AnnounceRequest, _=Depends(require_admin)):
+    """Post a free-form message to the Slack channel as the bot."""
+    text = body.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Message text is required.")
+    if len(text) > 4000:
+        raise HTTPException(status_code=400, detail="Message too long (4000 character max).")
+    if not slack_enabled():
+        raise HTTPException(status_code=400, detail="SLACK_WEBHOOK_URL not set.")
+    ok = await post_to_slack(text)
     return {"status": "ok" if ok else "failed"}
 
 

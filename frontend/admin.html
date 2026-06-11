@@ -33,6 +33,10 @@
     table.act th:nth-child(2), table.act th:nth-child(3) { text-align: center; }
     .muted { color: #6b8275; }
     .err { color: #f87171; min-height: 1em; }
+    .announce-box { background: #101a14; border: 1px solid #1f2e25; border-radius: 12px; padding: 16px; margin: 22px 0; }
+    .announce-title { font-weight: 700; margin-bottom: 10px; }
+    .announce-box textarea { width: 100%; box-sizing: border-box; resize: vertical; padding: 10px 12px; border-radius: 8px; border: 1px solid #2b3b33; background: #0f1713; color: #e8efe9; font: inherit; font-size: 0.92rem; }
+    .announce-row { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -56,6 +60,15 @@
         <div class="cards" id="cards" style="flex:1"></div>
       </div>
       <button class="btn" onclick="load()">Refresh</button>
+
+      <div class="announce-box">
+        <div class="announce-title">📣 Post a message to Slack</div>
+        <textarea id="announce-text" rows="3" placeholder="Message to post in the channel as the bot. Supports *bold* and :emoji: shortcodes."></textarea>
+        <div class="announce-row">
+          <button class="btn" onclick="sendAnnounce()">Post to Slack</button>
+          <span id="announce-status" class="muted"></span>
+        </div>
+      </div>
 
       <div class="section-title">Voting — open &amp; upcoming matchdays</div>
       <div id="matchdays"></div>
@@ -113,6 +126,30 @@
       sessionStorage.setItem(KEY_STORE, v);
       document.getElementById("gate-err").textContent = "";
       load();
+    }
+
+    async function sendAnnounce() {
+      const key = sessionStorage.getItem(KEY_STORE);
+      const ta = document.getElementById("announce-text");
+      const status = document.getElementById("announce-status");
+      const text = ta.value.trim();
+      if (!text) { status.textContent = "Type a message first."; return; }
+      if (!confirm("Post this to the Slack channel?\n\n" + text)) return;
+      status.textContent = "Posting…";
+      try {
+        const resp = await fetch("/admin/announce", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Admin-Key": key },
+          body: JSON.stringify({ text }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (resp.status === 403) { status.textContent = "Invalid admin key."; return; }
+        if (!resp.ok) { status.textContent = data.detail || ("Error " + resp.status); return; }
+        if (data.status === "ok") { status.textContent = "Posted ✅"; ta.value = ""; }
+        else { status.textContent = "Slack rejected it — check the webhook."; }
+      } catch (e) {
+        status.textContent = "Failed: " + e.message;
+      }
     }
 
     function render(d) {

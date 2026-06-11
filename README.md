@@ -247,3 +247,4 @@ All endpoints require `?user=NAME&sig=HMAC` except `/api/chat` (read), `/api/sta
 | `POST` | `/admin/reset-scores` | Wipe votes, scores, results |
 | `POST` | `/admin/reset-all` | Wipe everything |
 | `POST` | `/admin/slack-test` | Send a test message to the Slack webhook |
+| `POST` | `/admin/announce` | Post a free-form message to Slack as the bot (used by `/admin.html`) |

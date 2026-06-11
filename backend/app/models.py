@@ -186,3 +186,7 @@ class LeaderboardEntry(BaseModel):
 class SettleRequest(BaseModel):
     match_id: int
     result: str  # "team_a" or "team_b"
+
+
+class AnnounceRequest(BaseModel):
+    text: str
