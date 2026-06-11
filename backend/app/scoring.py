@@ -29,17 +29,19 @@ class VoteData(NamedTuple):
 
 
 class ScoreBreakdown(NamedTuple):
-    base_points: int
+    base_points: float   # a draw pays a 0.5 consolation to voters; wins are whole points
     streak_bonus: int
     perfect_round_bonus: int
     participation_bonus: int
 
     @property
-    def total(self) -> int:
+    def total(self) -> float:
         return self.base_points + self.streak_bonus + self.perfect_round_bonus + self.participation_bonus
 
 
-def compute_base_points(prediction: str, match: MatchData) -> int:
+def compute_base_points(prediction: str, match: MatchData) -> float:
+    if match.result == "draw":
+        return 0.5  # consolation — the match couldn't be called (there's no draw to pick)
     if prediction == match.result:
         return STAGE_MULTIPLIER.get(match.stage, 1)
     return 0
@@ -57,6 +59,8 @@ def compute_streak_bonus_per_match(votes: list[VoteData], matches: dict[int, Mat
     streak = 0
     bonuses: dict[int, int] = {v.match_id: 0 for v in votes}
     for vote, match in ordered:
+        if match.result == "draw":
+            continue  # a draw is neutral — it neither extends nor breaks a streak
         if vote.prediction == match.result:
             streak += 1
             if streak % 3 == 0:
@@ -91,9 +95,11 @@ def compute_perfect_round_bonus(
 ) -> dict[int, int]:
     """
     Returns {match_id: perfect_round_bonus}.
-    +2 awarded on the last match of the matchday if all predictions were correct.
-    Only evaluated once all matches in the matchday are settled.
-    Single-match days (e.g. the Final) don't qualify — a sweep needs 2+ matches.
+    +2 awarded on the last match of the matchday if the voter played the whole day
+    and correctly called every decisive (non-draw) match. Draws are free squares —
+    they don't need to be called and don't block the sweep. Only evaluated once all
+    matches in the matchday are settled. Single-match days (e.g. the Final) don't
+    qualify, and an all-draw day has nothing to sweep.
     """
     bonuses: dict[int, int] = {}
     for matchday, day_matches in matches_by_matchday.items():
@@ -101,12 +107,14 @@ def compute_perfect_round_bonus(
             continue  # a single-match day isn't a sweep — no perfect bonus
         if any(m.result is None for m in day_matches):
             continue
+        decisive = [m for m in day_matches if m.result != "draw"]
+        if not decisive:
+            continue  # an all-draw day has nothing to sweep
         day_votes = votes_by_matchday.get(matchday, [])
+        if len(day_votes) != len(day_matches):
+            continue  # must have played the whole day
         vote_map = {v.match_id: v.prediction for v in day_votes}
-        all_correct = all(
-            vote_map.get(m.id) == m.result for m in day_matches
-        )
-        if all_correct and len(day_votes) == len(day_matches):
+        if all(vote_map.get(m.id) == m.result for m in decisive):
             last_match = max(day_matches, key=lambda m: m.kickoff_utc)
             bonuses[last_match.id] = bonuses.get(last_match.id, 0) + 2
     return bonuses

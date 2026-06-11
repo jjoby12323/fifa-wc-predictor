@@ -190,8 +190,6 @@ main { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
   transition: background 0.15s;
 }
 .btn-vote:hover { background: var(--green-dark); }
-.btn-vote.btn-vote-draw { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-.btn-vote.btn-vote-draw:hover { background: #1c2230; border-color: var(--green); }
 
 .voted-badge {
   display: inline-block;
@@ -601,8 +599,6 @@ main { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
 }
 .mo-bar-a.mo-bar-win { background: var(--gold); }
 .mo-bar-b.mo-bar-win { background: var(--gold); }
-.mo-bar-draw { background: var(--muted); transition: width 0.4s ease; }
-.mo-bar-draw.mo-bar-win { background: var(--gold); }
 
 /* split columns for names */
 .mo-split {

@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import Integer, String, ForeignKey, UniqueConstraint, DateTime
+from sqlalchemy import Integer, String, ForeignKey, UniqueConstraint, DateTime, Float
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from pydantic import BaseModel
 from app.db import Base
@@ -83,11 +83,11 @@ class Score(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     match_id: Mapped[int] = mapped_column(Integer, ForeignKey("matches.id"), nullable=False)
-    base_points: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    base_points: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     streak_bonus: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     perfect_round_bonus: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     participation_bonus: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total: Mapped[float] = mapped_column(Float, nullable=False, default=0)
 
     user: Mapped["User"] = relationship("User", back_populates="scores")
     match: Mapped["Match"] = relationship("Match", back_populates="scores")
@@ -165,19 +165,19 @@ class PredictionHistoryRow(BaseModel):
 class ScoreRow(BaseModel):
     match_id: int
     match_label: str
-    base_points: int
+    base_points: float
     streak_bonus: int
     perfect_round_bonus: int
     participation_bonus: int
-    total: int
+    total: float
 
 
 class LeaderboardEntry(BaseModel):
     rank: int
     username: str
     display_name: str
-    total: int
-    base: int
+    total: float
+    base: float
     streak: int
     perfect: int
     participation: int

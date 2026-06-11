@@ -30,11 +30,12 @@ Base points scale by stage (48-team format includes a Round of 32):
 | Correct prediction (Quarter-Final) | 4 |
 | Correct prediction (Semi-Final) | 5 |
 | Correct prediction (Final) | 6 |
-| Streak bonus (every 3 correct in a row) | +1 |
-| Perfect matchday (all correct, 2+ matches) | +2 |
+| Streak bonus (3 in a row — draws are skipped, not broken) | +1 |
+| Perfect matchday (all decisive matches called, 2+ matches) | +2 |
 | Participation (every 3 matches voted on) | +1 |
+| Draw consolation (group match ends level — to everyone who voted) | +0.5 |
 
-In the **group stage** you can also predict a **Draw** — worth the same as a correct winner pick. Knockout matches are always decided (extra time / penalties), so there's no draw option there.
+You always pick a **winner** — there's no draw to choose. If a group match ends level, everyone who voted gets **+0.5** (it couldn't be called). A draw is neutral: it doesn't break your streak, and it counts as a free square toward a perfect matchday. Knockout matches are always decided, so they never draw.
 
 ## Setup
 

@@ -180,16 +180,12 @@
       if (m.status === "open" && !m.my_vote) {
         const underdogA = m.underdog === "team_a" ? `<span class="underdog-hint" title="Lower FIFA-ranked side">⚡ Underdog</span>` : "";
         const underdogB = m.underdog === "team_b" ? `<span class="underdog-hint" title="Lower FIFA-ranked side">⚡ Underdog</span>` : "";
-        const drawBtn = m.stage === "group"
-          ? `<div class="vote-option"><button class="btn-vote btn-vote-draw" onclick="vote(${m.id}, 'draw')">Draw</button></div>`
-          : "";
         actionHtml = `
           <div class="vote-buttons">
             <div class="vote-option">
               <button class="btn-vote" onclick="vote(${m.id}, 'team_a')">Vote ${escHtml(m.team_a)}</button>
               ${underdogA}
             </div>
-            ${drawBtn}
             <div class="vote-option">
               <button class="btn-vote" onclick="vote(${m.id}, 'team_b')">Vote ${escHtml(m.team_b)}</button>
               ${underdogB}
@@ -271,17 +267,14 @@
         ? `<img class="mo-flag" src="${flagB}" alt="${escHtml(m.team_b)} flag" onerror="this.style.display='none'">`
         : `<div class="mo-flag-placeholder">🏳</div>`;
 
-      const showDraw    = m.stage === "group";
       const votedA      = m.votes.filter(v => v.prediction === "team_a");
       const votedB      = m.votes.filter(v => v.prediction === "team_b");
-      const votedDraw   = m.votes.filter(v => v.prediction === "draw");
       const votedHidden = m.votes.filter(v => v.prediction === "hidden");
       const notVoted    = m.votes.filter(v => !v.prediction);
       const total       = m.votes.length;
 
-      const pctA    = total ? Math.round((votedA.length / total) * 100) : 0;
-      const pctB    = total ? Math.round((votedB.length / total) * 100) : 0;
-      const pctDraw = total ? Math.round((votedDraw.length / total) * 100) : 0;
+      const pctA = total ? Math.round((votedA.length / total) * 100) : 0;
+      const pctB = total ? Math.round((votedB.length / total) * 100) : 0;
 
       const chipList = (list) => list.length
         ? list.map(v => `<span class="mo-chip">${escHtml(v.display_name)}</span>`).join("")
@@ -296,12 +289,6 @@
       if (m.status === "open") {
         const pickedA = m.my_vote === "team_a";
         const pickedB = m.my_vote === "team_b";
-        const pickedDraw = m.my_vote === "draw";
-        const drawBtn = showDraw
-          ? `<button type="button" class="mo-vote-btn ${pickedDraw ? "picked" : ""}" onclick="voteFromModal(${m.id}, 'draw')">
-                ${pickedDraw ? "✓ " : ""}Draw
-              </button>`
-          : "";
         actionHtml = `
           <div class="mo-vote-section">
             <div class="mo-vote-title">${m.my_vote ? "Your pick — tap to change" : "Make your pick"}</div>
@@ -309,7 +296,6 @@
               <button type="button" class="mo-vote-btn ${pickedA ? "picked" : ""}" onclick="voteFromModal(${m.id}, 'team_a')">
                 ${pickedA ? "✓ " : ""}${escHtml(m.team_a)}
               </button>
-              ${drawBtn}
               <button type="button" class="mo-vote-btn ${pickedB ? "picked" : ""}" onclick="voteFromModal(${m.id}, 'team_b')">
                 ${pickedB ? "✓ " : ""}${escHtml(m.team_b)}
               </button>
@@ -375,12 +361,11 @@
               <span class="mo-pred-total">${total} participant${total !== 1 ? "s" : ""}</span>
             </div>
 
-            ${(votedA.length + votedB.length + votedDraw.length) > 0 ? `
+            ${(votedA.length + votedB.length) > 0 ? `
             <div class="mo-bar-wrap">
               <div class="mo-bar-label-left">${escHtml(m.team_a)} · ${votedA.length}</div>
               <div class="mo-bar">
                 <div class="mo-bar-a ${winnerA ? "mo-bar-win" : ""}" style="width:${pctA}%"></div>
-                ${showDraw ? `<div class="mo-bar-draw ${drawResult ? "mo-bar-win" : ""}" style="width:${pctDraw}%"></div>` : ""}
                 <div class="mo-bar-b ${winnerB ? "mo-bar-win" : ""}" style="width:${pctB}%"></div>
               </div>
               <div class="mo-bar-label-right">${votedB.length} · ${escHtml(m.team_b)}</div>
@@ -391,12 +376,6 @@
                 <div class="mo-split-head ${winnerA ? "mo-split-head-win" : ""}">${escHtml(m.team_a)}</div>
                 <div class="mo-chips">${chipList(votedA)}</div>
               </div>
-              ${showDraw ? `
-              <div class="mo-split-divider"></div>
-              <div class="mo-split-col">
-                <div class="mo-split-head ${drawResult ? "mo-split-head-win" : ""}">Draw</div>
-                <div class="mo-chips">${chipList(votedDraw)}</div>
-              </div>` : ""}
               <div class="mo-split-divider"></div>
               <div class="mo-split-col">
                 <div class="mo-split-head ${winnerB ? "mo-split-head-win" : ""}">${escHtml(m.team_b)}</div>
