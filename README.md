@@ -15,6 +15,7 @@ A team prediction game for the 2026 FIFA World Cup. Each person gets a signed pe
 - Optional Slack bot: polls-open reminders, vote nudges, match results, daily leaderboard
 - Chat widget on every page for smack talk, with a new-message popup
 - Click any name on the leaderboard to view their prediction history
+- Admin engagement page (`/admin.html`) — key-gated view of who's voting and chatting (never reveals individual picks)
 - Swap-ready frontend: replace `frontend/` with a React app, API contract stays the same
 
 ## Scoring
@@ -240,6 +241,7 @@ All endpoints require `?user=NAME&sig=HMAC` except `/api/chat` (read), `/api/sta
 | `POST` | `/api/chat` | Post a chat message |
 | `POST` | `/admin/settle` | Manually settle a match result |
 | `GET` | `/admin/matches` | List all matches with IDs |
+| `GET` | `/admin/participation` | Engagement overview — who's voting/chatting (no picks revealed); backs `/admin.html` |
 | `POST` | `/admin/reset-scores` | Wipe votes, scores, results |
 | `POST` | `/admin/reset-all` | Wipe everything |
 | `POST` | `/admin/slack-test` | Send a test message to the Slack webhook |

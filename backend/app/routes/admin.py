@@ -1,13 +1,17 @@
 import os
 import hmac
+from collections import defaultdict
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
-from app.models import Match, Vote, Score, User, SettleRequest
+from app.models import Match, Vote, Score, User, Message, SettleRequest
 from app.scoring import compute_all_scores, MatchData, VoteData
 from app.slack import post_to_slack, slack_enabled
+
+IST_OFFSET = timedelta(hours=5, minutes=30)
 
 router = APIRouter()
 
@@ -134,3 +138,80 @@ async def list_matches(
         }
         for m in matches
     ]
+
+
+@router.get("/admin/participation")
+async def participation(
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_admin),
+):
+    """Engagement overview — who's voting and chatting. Never exposes individual picks."""
+    now = datetime.utcnow()
+
+    users = (await db.execute(select(User))).scalars().all()
+    matches = (await db.execute(select(Match).order_by(Match.kickoff_utc))).scalars().all()
+    votes = (await db.execute(select(Vote))).scalars().all()
+    messages = (await db.execute(select(Message))).scalars().all()
+
+    votes_per_user: dict[int, int] = defaultdict(int)
+    msgs_per_user: dict[int, int] = defaultdict(int)
+    last_active: dict[int, datetime] = {}
+    for v in votes:
+        votes_per_user[v.user_id] += 1
+        if v.submitted_at and v.submitted_at > last_active.get(v.user_id, datetime.min):
+            last_active[v.user_id] = v.submitted_at
+    for m in messages:
+        msgs_per_user[m.user_id] += 1
+        if m.created_at and m.created_at > last_active.get(m.user_id, datetime.min):
+            last_active[m.user_id] = m.created_at
+
+    players = [
+        {
+            "display_name": u.display_name,
+            "total_votes": votes_per_user.get(u.id, 0),
+            "chat_messages": msgs_per_user.get(u.id, 0),
+            "last_active": last_active[u.id].isoformat() + "Z" if u.id in last_active else None,
+        }
+        for u in users
+    ]
+
+    match_matchday = {m.id: m.matchday for m in matches}
+    voters_per_matchday: dict[int, set] = defaultdict(set)
+    for v in votes:
+        md = match_matchday.get(v.match_id)
+        if md is not None:
+            voters_per_matchday[md].add(v.user_id)
+
+    matches_by_matchday: dict[int, list] = defaultdict(list)
+    for m in matches:
+        matches_by_matchday[m.matchday].append(m)
+
+    matchdays = []
+    for md in sorted(matches_by_matchday):
+        day = matches_by_matchday[md]
+        first_kickoff = min(m.kickoff_utc for m in day)
+        polls_open = min(m.polls_open_utc for m in day)
+        if now < polls_open:
+            status = "upcoming"
+        elif now < first_kickoff:
+            status = "open"
+        else:
+            status = "closed"
+        voted_ids = voters_per_matchday.get(md, set())
+        matchdays.append({
+            "matchday": md,
+            "date": (first_kickoff + IST_OFFSET).date().isoformat(),
+            "status": status,
+            "kickoff_utc": first_kickoff.isoformat() + "Z",
+            "polls_open_utc": polls_open.isoformat() + "Z",
+            "total_matches": len(day),
+            "player_count": len(users),
+            "voted_count": sum(1 for u in users if u.id in voted_ids),
+            "not_voted": [u.display_name for u in users if u.id not in voted_ids],
+        })
+
+    return {
+        "generated_at": now.isoformat() + "Z",
+        "players": players,
+        "matchdays": matchdays,
+    }
