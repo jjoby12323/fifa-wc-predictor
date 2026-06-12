@@ -226,7 +226,7 @@ npm create vite@latest frontend -- --template react
 
 ## API Reference
 
-All endpoints require `?user=NAME&sig=HMAC` except `/api/chat` (read), `/api/standings`, `/api/bracket`, and admin routes.
+All endpoints require `?user=NAME&sig=HMAC` except `/api/leaderboard`, `/api/chat` (read), `/api/standings`, `/api/bracket`, and admin routes.
 
 | Method | Path | Description |
 |--------|------|-------------|

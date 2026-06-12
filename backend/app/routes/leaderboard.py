@@ -3,7 +3,6 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
-from app.auth import require_user
 from app.models import User, Score, LeaderboardEntry
 
 router = APIRouter()
@@ -11,9 +10,11 @@ router = APIRouter()
 
 @router.get("/api/leaderboard", response_model=list[LeaderboardEntry])
 async def get_leaderboard(
-    _username: str = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # Public — the leaderboard is shared data (it's what the Slack bot posts to
+    # everyone), so the link in those posts works without a signed personal URL.
+    # Per-player detail (/api/me, history) stays auth-gated.
     rows = await db.execute(
         select(
             User.username,

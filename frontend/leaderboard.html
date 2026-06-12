@@ -103,12 +103,13 @@
     async function loadLeaderboard() {
       const { user, sig } = getAuth();
       if (!user || !sig) {
-        showError("No valid link — leaderboard visible but your breakdown is unavailable.");
+        showError("Viewing the shared leaderboard — open your personal link to see your own breakdown.");
       }
 
       let board;
       try {
-        board = await apiFetch(`/api/leaderboard?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`);
+        const auth = (user && sig) ? `?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}` : "";
+        board = await apiFetch(`/api/leaderboard${auth}`);
       } catch (err) {
         showError(err.message);
         document.getElementById("loading").classList.add("hidden");
