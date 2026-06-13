@@ -113,7 +113,6 @@ class MatchStatus(BaseModel):
     result: Optional[str]
     my_vote: Optional[str]
     correct: Optional[bool]
-    underdog: Optional[str]  # "team_a" | "team_b" | None (if ranks equal)
 
 
 class MatchVoteEntry(BaseModel):
@@ -132,7 +131,6 @@ class MatchDetail(BaseModel):
     matchday: int
     status: str
     result: Optional[str]
-    underdog: Optional[str]
     fifa_rank_a: int
     fifa_rank_b: int
     my_vote: Optional[str]

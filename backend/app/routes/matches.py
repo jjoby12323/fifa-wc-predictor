@@ -67,12 +67,6 @@ async def get_matches(
             # A draw is neutral — nobody could call it, so it's neither right nor wrong.
             correct = None if m.result == "draw" else (my_vote == m.result)
 
-        # Underdog = team with higher (worse) FIFA rank number
-        if m.fifa_rank_a != m.fifa_rank_b:
-            underdog = "team_a" if m.fifa_rank_a > m.fifa_rank_b else "team_b"
-        else:
-            underdog = None
-
         out.append(MatchStatus(
             id=m.id,
             match_label=m.match_label,
@@ -86,7 +80,6 @@ async def get_matches(
             result=m.result,
             my_vote=my_vote,
             correct=correct,
-            underdog=underdog,
         ))
     return out
 
@@ -142,10 +135,6 @@ async def get_match_detail(
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     status = _match_status(match, now)
 
-    underdog = None
-    if match.fifa_rank_a != match.fifa_rank_b:
-        underdog = "team_a" if match.fifa_rank_a > match.fifa_rank_b else "team_b"
-
     all_users_result = await db.execute(select(User).order_by(User.display_name))
     all_users = all_users_result.scalars().all()
 
@@ -179,7 +168,6 @@ async def get_match_detail(
         matchday=match.matchday,
         status=status,
         result=match.result,
-        underdog=underdog,
         fifa_rank_a=match.fifa_rank_a,
         fifa_rank_b=match.fifa_rank_b,
         my_vote=my_vote,

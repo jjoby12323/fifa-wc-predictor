@@ -178,17 +178,13 @@
 
       let actionHtml = "";
       if (m.status === "open" && !m.my_vote) {
-        const underdogA = m.underdog === "team_a" ? `<span class="underdog-hint" title="Lower FIFA-ranked side">⚡ Underdog</span>` : "";
-        const underdogB = m.underdog === "team_b" ? `<span class="underdog-hint" title="Lower FIFA-ranked side">⚡ Underdog</span>` : "";
         actionHtml = `
           <div class="vote-buttons">
             <div class="vote-option">
               <button class="btn-vote" onclick="vote(${m.id}, 'team_a')">Vote ${escHtml(m.team_a)}</button>
-              ${underdogA}
             </div>
             <div class="vote-option">
               <button class="btn-vote" onclick="vote(${m.id}, 'team_b')">Vote ${escHtml(m.team_b)}</button>
-              ${underdogB}
             </div>
           </div>`;
       } else if (m.my_vote) {
@@ -257,7 +253,6 @@
             hour: "2-digit", minute: "2-digit", timeZoneName: "short"
           });
 
-      const isUnderdog = (side) => m.underdog === side;
       const flagA = getFlagUrl(m.team_a);
       const flagB = getFlagUrl(m.team_b);
       const flagImgA = flagA
@@ -330,11 +325,10 @@
 
           <!-- Teams row -->
           <div class="mo-teams-row">
-            <div class="mo-team ${isUnderdog("team_a") ? "mo-underdog" : ""} ${winnerA ? "mo-winner" : ""}">
+            <div class="mo-team ${winnerA ? "mo-winner" : ""}">
               <div class="mo-flag-wrap">${flagImgA}</div>
               <div class="mo-team-name">${escHtml(m.team_a)}</div>
               <div class="mo-rank">FIFA #${m.fifa_rank_a}</div>
-              ${isUnderdog("team_a") ? `<div class="mo-dog-badge">⚡ Underdog</div>` : ""}
             </div>
 
             <div class="mo-vs-col">
@@ -345,11 +339,10 @@
               ${m.stage !== "group" ? `<div class="mo-stage-note">${stageLabel}</div>` : ""}
             </div>
 
-            <div class="mo-team ${isUnderdog("team_b") ? "mo-underdog" : ""} ${winnerB ? "mo-winner" : ""}">
+            <div class="mo-team ${winnerB ? "mo-winner" : ""}">
               <div class="mo-flag-wrap">${flagImgB}</div>
               <div class="mo-team-name">${escHtml(m.team_b)}</div>
               <div class="mo-rank">FIFA #${m.fifa_rank_b}</div>
-              ${isUnderdog("team_b") ? `<div class="mo-dog-badge">⚡ Underdog</div>` : ""}
             </div>
           </div>
 
