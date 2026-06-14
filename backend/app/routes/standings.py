@@ -52,11 +52,13 @@ async def get_standings():
     for standing in raw.get("standings", []):
         if standing.get("type") != "TOTAL":
             continue
-        group_raw = standing.get("group", "")
-        # "GROUP_A" → "Group A",  "GROUP_STAGE" (old format) → skip
-        if not group_raw.startswith("GROUP_") or group_raw == "GROUP_STAGE":
+        # football-data returns the group as a display label ("Group A") for the
+        # World Cup, but "GROUP_A" for some competitions — accept both, and skip
+        # stage-level/empty entries.
+        group_raw = (standing.get("group") or "").strip()
+        if not group_raw or group_raw.upper() in ("GROUP_STAGE", "ALL"):
             continue
-        group_name = "Group " + group_raw.replace("GROUP_", "")
+        group_name = group_raw.replace("GROUP_", "Group ").strip()
         table = [
             {
                 "position": row["position"],
