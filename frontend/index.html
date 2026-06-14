@@ -89,6 +89,7 @@
       const ms = allByDate[dk] || [];
       return {
         hasOpen: ms.some(m => m.status === "open"),
+        hasStarted: ms.some(m => m.status === "closed" || m.status === "settled"),
         allSettled: ms.length > 0 && ms.every(m => m.status === "settled"),
       };
     }
@@ -126,20 +127,33 @@
 
       let sections;
       if (view === "now") {
-        const votable = sortedDates.filter(dk => dayStatus(dk).hasOpen);
-        const completed = sortedDates.filter(dk => dayStatus(dk).allSettled);
         sections = [];
-        if (completed.length) sections.push({ key: completed[completed.length - 1], tag: "Results" });
-        for (const dk of votable) sections.push({ key: dk, tag: "Open for voting" });
+        const shown = new Set();
+        const votable = sortedDates.filter(dk => dayStatus(dk).hasOpen);
+        // The most recent day that's kicked off and is no longer open for voting
+        // leads the page — its results, or "In progress" while they're still
+        // landing. Keying off "started" rather than "fully settled" keeps the
+        // current matchday visible during the gap between kickoff and results
+        // (otherwise a day with an unsettled match vanishes entirely).
+        const recent = [...sortedDates].reverse().find(dk => {
+          const s = dayStatus(dk); return s.hasStarted && !s.hasOpen;
+        });
+        if (recent) {
+          sections.push({ key: recent, tag: dayStatus(recent).allSettled ? "Results" : "In progress" });
+          shown.add(recent);
+        }
+        for (const dk of votable) {
+          if (!shown.has(dk)) { sections.push({ key: dk, tag: "Open for voting" }); shown.add(dk); }
+        }
         if (!sections.length) {  // nothing live — show the next upcoming day
           sections.push({ key: sortedDates.find(dk => dk >= todayKey) || sortedDates[sortedDates.length - 1], tag: "Upcoming" });
         }
       } else {
         const st = dayStatus(view);
-        sections = [{ key: view, tag: st.allSettled ? "Results" : st.hasOpen ? "Open for voting" : "Matches" }];
+        sections = [{ key: view, tag: st.allSettled ? "Results" : st.hasOpen ? "Open for voting" : st.hasStarted ? "In progress" : "Matches" }];
       }
 
-      const tagFor = dk => { const s = dayStatus(dk); return s.allSettled ? " · done" : s.hasOpen ? " · open" : ""; };
+      const tagFor = dk => { const s = dayStatus(dk); return s.hasOpen ? " · open" : s.allSettled ? " · done" : s.hasStarted ? " · live" : ""; };
       const opts = [`<option value="now"${view === "now" ? " selected" : ""}> Now — vote &amp; latest result</option>`]
         .concat(sortedDates.map(dk =>
           `<option value="${dk}"${dk === view ? " selected" : ""}>${dayLabel(dk)}${dk === todayKey ? " · Today" : ""}${tagFor(dk)}</option>`))
