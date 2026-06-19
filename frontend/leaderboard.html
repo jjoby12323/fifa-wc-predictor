@@ -176,25 +176,54 @@
       ).catch(err => { document.getElementById("modal-body").innerHTML = `<p class="error">${err.message}</p>`; return null; });
       if (!history) return;
 
-      const stageLabel = { group: "Group", r16: "R16", qf: "QF", sf: "SF", final: "Final" };
-      document.getElementById("modal-body").innerHTML = `
-        <table class="breakdown-table">
-          <thead><tr><th>Match</th><th>Stage</th><th>Pick</th><th>Result</th><th>Pts</th></tr></thead>
-          <tbody>
-            ${history.map(r => {
-              const pickLabel = r.prediction ? (r.prediction === "team_a" ? r.match_label.split(" vs ")[0] : r.match_label.split(" vs ")[1]) : "—";
-              const resultClass = r.correct === true ? "correct" : r.correct === false ? "wrong" : "";
-              const resultIcon = r.correct === true ? "✓" : r.correct === false ? "✗" : "—";
-              return `<tr class="${resultClass}">
-                <td>${escHtml(r.match_label)}</td>
-                <td>${stageLabel[r.stage] || r.stage}</td>
-                <td>${escHtml(pickLabel)}</td>
-                <td>${resultIcon}</td>
-                <td>${r.points || "—"}</td>
-              </tr>`;
-            }).join("")}
-          </tbody>
-        </table>`;
+      const stageLabel = { group: "Group Stage", r32: "Round of 32", r16: "Round of 16", qf: "Quarter-Final", sf: "Semi-Final", final: "Final", third: "3rd Place" };
+      const teamOf = (r, pred) => pred === "team_a" ? r.match_label.split(" vs ")[0] : r.match_label.split(" vs ")[1];
+
+      // Group by matchday; only show matchdays with at least one settled match.
+      const byMd = {};
+      for (const r of history) (byMd[r.matchday] = byMd[r.matchday] || []).push(r);
+      const mds = Object.keys(byMd).map(Number).sort((a, b) => a - b).filter(md => byMd[md].some(r => r.result));
+
+      if (!mds.length) {
+        document.getElementById("modal-body").innerHTML = `<p class="empty-note" style="padding:24px">No settled matches yet.</p>`;
+        return;
+      }
+
+      const ptsTxt = n => (n ? "+" + n : "0");
+      let grand = 0;
+      const trs = [];
+      for (const md of mds) {
+        const rows = byMd[md].filter(r => r.result);  // settled matches in this matchday
+        const title = rows[0].stage === "group" ? `Matchday ${md}` : (stageLabel[rows[0].stage] || `Matchday ${md}`);
+
+        const streak  = rows.reduce((a, r) => a + r.streak_bonus, 0);
+        const perfect = rows.reduce((a, r) => a + r.perfect_round_bonus, 0);
+        const turnout = rows.reduce((a, r) => a + r.participation_bonus, 0);
+        const subtotal = rows.reduce((a, r) => a + r.base_points, 0) + streak + perfect + turnout;
+        grand += subtotal;
+
+        trs.push(`<tr class="bd-head"><td colspan="3">${title}</td><td class="bd-pts bd-sub">${subtotal} pt${subtotal === 1 ? "" : "s"}</td></tr>`);
+        for (const r of rows) {
+          const [oc, ocCls] = !r.prediction ? ["No pick", "bd-skip"]
+            : r.result === "draw" ? ["Draw", "bd-draw"]
+            : r.correct === true ? ["Correct", "bd-ok"]
+            : ["Wrong", "bd-no"];
+          const pick = r.prediction ? escHtml(teamOf(r, r.prediction)) : "—";
+          trs.push(`<tr>
+            <td>${escHtml(r.match_label)}</td>
+            <td>${pick}</td>
+            <td class="${ocCls}">${oc}</td>
+            <td class="bd-pts">${ptsTxt(r.base_points)}</td>
+          </tr>`);
+        }
+        if (streak)  trs.push(`<tr class="bd-bonus"><td colspan="3">🔥 Streak bonus</td><td class="bd-pts">+${streak}</td></tr>`);
+        if (perfect) trs.push(`<tr class="bd-bonus"><td colspan="3">⭐ Perfect matchday</td><td class="bd-pts">+${perfect}</td></tr>`);
+        if (turnout) trs.push(`<tr class="bd-bonus"><td colspan="3">🙌 Turnout</td><td class="bd-pts">+${turnout}</td></tr>`);
+      }
+      trs.push(`<tr class="bd-grand"><td colspan="3">Total</td><td class="bd-pts">${grand} pt${grand === 1 ? "" : "s"}</td></tr>`);
+
+      document.getElementById("modal-body").innerHTML =
+        `<div class="bd-wrap"><table class="bd-table"><tbody>${trs.join("")}</tbody></table></div>`;
     }
 
     function closeProfile(e) {

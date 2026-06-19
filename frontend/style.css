@@ -293,6 +293,22 @@ main { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
 }
 .profile-link:hover { color: var(--gold); }
 
+/* ── Profile breakdown — one aligned table grouped by matchday ── */
+.bd-wrap { padding: 4px 20px 18px; }
+table.bd-table { width: 100%; border-collapse: collapse; }
+.bd-table td { padding: 7px 0; font-size: 0.86rem; vertical-align: middle; }
+.bd-table td + td { padding-left: 14px; }
+.bd-table td.bd-pts { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bd-table tr.bd-head td { padding-top: 22px; padding-bottom: 9px; font-weight: 700; font-size: 0.95rem; border-bottom: 1px solid var(--border); }
+.bd-table tr:first-child.bd-head td { padding-top: 4px; }
+.bd-table tr.bd-head td.bd-sub { color: var(--gold); }
+.bd-table tr.bd-bonus td { color: var(--muted); font-style: italic; padding-top: 5px; padding-bottom: 5px; }
+.bd-table tr.bd-grand td { padding-top: 16px; border-top: 2px solid var(--border); font-weight: 700; font-size: 1rem; }
+.bd-table tr.bd-grand td.bd-pts { color: var(--gold); }
+.bd-ok { color: #4caf7d; }
+.bd-no { color: var(--red); }
+.bd-draw, .bd-skip { color: var(--muted); }
+
 /* ── Clickable match card ───────────────────────────────────── */
 
 .match-card.clickable { cursor: pointer; }

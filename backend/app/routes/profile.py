@@ -32,7 +32,7 @@ async def get_user_history(
     vote_map = {v.match_id: v.prediction for v in votes_result.scalars().all()}
 
     scores_result = await db.execute(select(Score).where(Score.user_id == target.id))
-    score_map = {s.match_id: s.total for s in scores_result.scalars().all()}
+    score_map = {s.match_id: s for s in scores_result.scalars().all()}
 
     rows = []
     for m in all_matches:
@@ -42,16 +42,21 @@ async def get_user_history(
             # A draw is neutral — neither right nor wrong (shows as "—").
             correct = None if m.result == "draw" else (prediction == m.result)
 
+        sc = score_map.get(m.id)
         rows.append(PredictionHistoryRow(
             match_id=m.id,
             match_label=m.match_label,
             kickoff_utc=m.kickoff_utc,
             stage=m.stage,
+            matchday=m.matchday,
             # Hide prediction until match is settled (no peeking before kickoff)
             prediction=prediction if m.result is not None else None,
             result=m.result,
             correct=correct,
-            points=score_map.get(m.id, 0),
+            base_points=sc.base_points if sc else 0,
+            streak_bonus=sc.streak_bonus if sc else 0,
+            perfect_round_bonus=sc.perfect_round_bonus if sc else 0,
+            participation_bonus=sc.participation_bonus if sc else 0,
         ))
 
     return rows

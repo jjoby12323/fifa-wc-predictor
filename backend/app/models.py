@@ -154,10 +154,15 @@ class PredictionHistoryRow(BaseModel):
     match_label: str
     kickoff_utc: datetime
     stage: str
+    matchday: int
     prediction: Optional[str]       # None if they didn't vote
     result: Optional[str]           # None if not settled yet
     correct: Optional[bool]
-    points: float                   # fractional — a draw scores 0.5
+    # Per-match score components — bonuses are shown as their own lines in the UI
+    base_points: float              # 1 for a correct pick, 0.5 for a draw, else 0
+    streak_bonus: int
+    perfect_round_bonus: int
+    participation_bonus: int
 
 
 class ScoreRow(BaseModel):
