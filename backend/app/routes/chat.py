@@ -1,15 +1,35 @@
+import os
+import uuid
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.auth import require_user
 from app.models import Message, User, ChatMessage, ChatRequest
+from app.uploads import upload_dir, total_upload_bytes, MAX_UPLOAD_BYTES, MAX_TOTAL_BYTES, ALLOWED_EXT
 
 router = APIRouter()
 
 MAX_LENGTH = 280
+
+
+@router.post("/api/chat/upload")
+async def upload_image(file: UploadFile = File(...), _username: str = Depends(require_user)):
+    """Save a user-supplied GIF/image to the volume and return its URL to post in chat."""
+    ext = os.path.splitext(file.filename or "")[1].lower().lstrip(".")
+    if ext not in ALLOWED_EXT or not (file.content_type or "").startswith("image/"):
+        raise HTTPException(status_code=400, detail="Only GIF, PNG, JPG, or WebP images are allowed.")
+    data = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail=f"File too large (max {MAX_UPLOAD_BYTES // (1024 * 1024)} MB).")
+    if total_upload_bytes() + len(data) > MAX_TOTAL_BYTES:
+        raise HTTPException(status_code=507, detail="Upload storage is full — ask the admin to clear some space.")
+    name = f"{uuid.uuid4().hex}.{ext}"
+    with open(os.path.join(upload_dir(), name), "wb") as f:
+        f.write(data)
+    return {"url": f"/uploads/{name}"}
 
 
 @router.get("/api/chat", response_model=list[ChatMessage])

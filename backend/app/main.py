@@ -6,9 +6,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.routes import matches, votes, leaderboard, admin, chat, profile, standings
+from app.routes import matches, votes, leaderboard, admin, chat, profile, standings, gifs
 from app.sync import start_result_scheduler, stop_result_scheduler
 from app.db import engine
+from app.uploads import upload_dir
 
 
 async def _ensure_schema():
@@ -51,6 +52,10 @@ app.include_router(admin.router)
 app.include_router(chat.router)
 app.include_router(profile.router)
 app.include_router(standings.router)
+app.include_router(gifs.router)
+
+# Serve user-uploaded chat images from the data volume (created on first use).
+app.mount("/uploads", StaticFiles(directory=upload_dir()), name="uploads")
 
 # Works both locally (../../frontend) and in Docker (/app/frontend)
 for _candidate in [

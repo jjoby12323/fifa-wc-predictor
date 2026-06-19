@@ -13,7 +13,7 @@ A team prediction game for the 2026 FIFA World Cup. Each person gets a signed pe
 - Auto-refreshes fixtures every 6h — fills in knockout teams and schedule changes (no manual re-sync once seeded)
 - Knockout bracket + live group standings on a dedicated page
 - Optional Slack bot: polls-open reminders, vote nudges, match results, daily leaderboard
-- Chat widget on every page for smack talk, with a new-message popup
+- Smack-talk chat with message replies, GIFs (Giphy search + image upload), and a new-message popup
 - Click any name on the leaderboard to view their prediction history
 - Admin engagement page (`/admin.html`) — key-gated view of who's voting and chatting (never reveals individual picks)
 - Swap-ready frontend: replace `frontend/` with a React app, API contract stays the same
@@ -78,6 +78,10 @@ SLACK_WEBHOOK_URL=
 # SLACK_REMINDER_HOURS_BEFORE=3       # hours before a matchday's first kickoff to nudge non-voters
 # SLACK_LEADERBOARD_HOUR_IST=9        # daily standings post — hour of day in SLACK_LEADERBOARD_TZ
 # SLACK_LEADERBOARD_TZ=Asia/Kolkata   # timezone for the daily post (IANA name)
+
+# Giphy API key for the chat GIF picker (optional — leave blank to hide the GIF button)
+# Free key: https://developers.giphy.com/
+GIPHY_API_KEY=
 ```
 
 ### 3. Run migrations

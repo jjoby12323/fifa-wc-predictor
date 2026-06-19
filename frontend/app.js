@@ -209,7 +209,7 @@ function showChatToast(msg) {
   const t = _ensureChatToast();
   if (_chatToastHideTimer) { clearTimeout(_chatToastHideTimer); _chatToastHideTimer = null; }
   t.querySelector(".chat-toast-name").textContent = msg.display_name || "New message";
-  t.querySelector(".chat-toast-text").textContent = msg.content || "";
+  t.querySelector(".chat-toast-text").textContent = _mediaUrl(msg.content) ? _mediaLabel(msg.content) : (msg.content || "");
   t.classList.remove("hidden");
   void t.offsetWidth;            // reflow so the slide-in transition runs
   t.classList.add("show");
@@ -230,6 +230,20 @@ function hideChatToast() {
 let _chatOpen = false, _chatLastSeen = 0, _chatPrimed = false, _chatMsgs = [], _chatReplyTo = null, _chatForceBottom = true;
 
 function _clip(s, n) { s = String(s || ""); return s.length > n ? s.slice(0, n - 1) + "…" : s; }
+
+// A chat message is "media" (rendered inline) if its whole content is an image
+// URL we trust: an https Giphy URL, or one of our own uploads under /uploads/.
+function _mediaUrl(content) {
+  const s = (content || "").trim();
+  if (!s || /\s/.test(s)) return null;
+  if (s.startsWith("/uploads/")) return s;
+  try {
+    const u = new URL(s);
+    if (u.protocol === "https:" && (u.hostname === "giphy.com" || u.hostname.endsWith(".giphy.com"))) return s;
+  } catch (_) {}
+  return null;
+}
+function _mediaLabel(content) { const s = content || ""; return (s.includes("giphy.com") || /\.gif(\?|$)/i.test(s)) ? "🖼 GIF" : "🖼 Image"; }
 
 async function loadChat() {
   const msgs = await apiFetch("/api/chat").catch(() => []);
@@ -259,13 +273,18 @@ function renderChat(msgs) {
   const prevTop = el.scrollTop;
   el.innerHTML = msgs.map(m => {
     const mine = m.username === user ? "mine" : "";
-    const quote = m.reply_to_name
-      ? `<div class="chat-quote"><span class="chat-quote-name">${escHtml(m.reply_to_name)}</span><span class="chat-quote-text">${escHtml(_clip(m.reply_to_content, 80))}</span></div>`
+    const qtext = m.reply_to_content
+      ? (_mediaUrl(m.reply_to_content) ? _mediaLabel(m.reply_to_content) : escHtml(_clip(m.reply_to_content, 80)))
       : "";
+    const quote = m.reply_to_name
+      ? `<div class="chat-quote"><span class="chat-quote-name">${escHtml(m.reply_to_name)}</span><span class="chat-quote-text">${qtext}</span></div>`
+      : "";
+    const media = _mediaUrl(m.content);
+    const body = media ? `<img class="chat-gif" src="${escHtml(media)}" alt="" loading="lazy">` : escHtml(m.content);
     return `<div class="chat-msg ${mine}">
       <span class="chat-name">${escHtml(m.display_name)}</span>
       <div class="chat-row">
-        <div class="chat-text">${quote}${escHtml(m.content)}</div>
+        <div class="chat-text${media ? " has-gif" : ""}">${quote}${body}</div>
         <button class="chat-reply-btn" title="Reply" onclick="setReply(${m.id})">↩</button>
       </div>
     </div>`;
@@ -296,8 +315,9 @@ function _renderReplyBar() {
   if (!bar) return;
   if (!_chatReplyTo) { bar.classList.add("hidden"); bar.innerHTML = ""; return; }
   bar.classList.remove("hidden");
+  const info = _mediaUrl(_chatReplyTo.content) ? _mediaLabel(_chatReplyTo.content) : escHtml(_clip(_chatReplyTo.content, 60));
   bar.innerHTML =
-    `<span class="chat-reply-info">↩ <b>${escHtml(_chatReplyTo.name)}</b> · ${escHtml(_clip(_chatReplyTo.content, 60))}</span>` +
+    `<span class="chat-reply-info">↩ <b>${escHtml(_chatReplyTo.name)}</b> · ${info}</span>` +
     `<button class="chat-reply-cancel" title="Cancel" onclick="clearReply()">✕</button>`;
 }
 
@@ -319,6 +339,103 @@ async function sendMessage() {
   await loadChat();
 }
 
+// Upload a GIF/image file from the device and post it as a chat message.
+async function uploadAndSend(file) {
+  const { user, sig } = getAuth();
+  if (!user || !sig || !file) return;
+  const fd = new FormData();
+  fd.append("file", file);
+  let res;
+  try {
+    res = await fetch(`/api/chat/upload?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`, { method: "POST", body: fd });
+  } catch (_) { return; }
+  if (!res.ok) {
+    let d = {}; try { d = await res.json(); } catch (_) {}
+    alert(d.detail || "Upload failed.");
+    return;
+  }
+  const { url } = await res.json();
+  const reply_to = _chatReplyTo ? _chatReplyTo.id : null;
+  clearReply();
+  _chatForceBottom = true;
+  await apiFetch(`/api/chat?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content: url, reply_to }),
+  }).catch(() => {});
+  await loadChat();
+}
+
+// ── GIF picker (Giphy, via the /api/gifs proxy; hidden when no key configured) ──
+let _gifTimer = null;
+
+function toggleGifPicker() {
+  const p = document.getElementById("chat-gif-picker");
+  if (!p) return;
+  const show = p.classList.contains("hidden");
+  p.classList.toggle("hidden", !show);
+  if (show) {
+    const s = document.getElementById("gif-search");
+    s.value = ""; s.focus();
+    searchGifs("");
+  }
+}
+
+async function searchGifs(q) {
+  const res = document.getElementById("gif-results");
+  if (!res) return;
+  res.innerHTML = `<div class="gif-note">Loading…</div>`;
+  let data;
+  try { data = await (await fetch(`/api/gifs?q=${encodeURIComponent(q)}`)).json(); } catch (_) { data = null; }
+  if (!data || !data.enabled) { res.innerHTML = `<div class="gif-note">GIF search isn't set up.</div>`; return; }
+  if (!data.gifs.length) { res.innerHTML = `<div class="gif-note">No GIFs found.</div>`; return; }
+  res.innerHTML = data.gifs
+    .map(g => `<img class="gif-thumb" src="${escHtml(g.preview)}" data-send="${escHtml(g.send)}" alt="GIF" loading="lazy">`)
+    .join("");
+  res.querySelectorAll(".gif-thumb").forEach(img => img.addEventListener("click", () => sendGif(img.dataset.send)));
+}
+
+async function sendGif(url) {
+  const { user, sig } = getAuth();
+  if (!user || !sig || !url) return;
+  document.getElementById("chat-gif-picker")?.classList.add("hidden");
+  const reply_to = _chatReplyTo ? _chatReplyTo.id : null;
+  clearReply();
+  _chatForceBottom = true;
+  await apiFetch(`/api/chat?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content: url, reply_to }),
+  }).catch(() => {});
+  await loadChat();
+}
+
+async function _initGifPicker(inputRow) {
+  if (!inputRow) return;
+  let enabled = false;
+  try { enabled = !!(await (await fetch("/api/gifs")).json()).enabled; } catch (_) {}
+  if (!enabled) return;   // no Giphy key → no GIF button, chat unchanged
+  const sendBtn = inputRow.querySelector(".chat-send");
+  if (sendBtn && !inputRow.querySelector(".chat-gif-btn")) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chat-gif-btn"; b.textContent = "GIF"; b.title = "Send a GIF";
+    b.addEventListener("click", toggleGifPicker);
+    inputRow.insertBefore(b, sendBtn);
+  }
+  if (!document.getElementById("chat-gif-picker")) {
+    const p = document.createElement("div");
+    p.id = "chat-gif-picker";
+    p.className = "chat-gif-picker hidden";
+    p.innerHTML = `<input id="gif-search" class="gif-search" type="text" placeholder="Search GIFs…"><div id="gif-results" class="gif-results"></div>`;
+    inputRow.parentNode.insertBefore(p, inputRow);
+    p.querySelector("#gif-search").addEventListener("input", e => {
+      clearTimeout(_gifTimer);
+      const q = e.target.value;
+      _gifTimer = setTimeout(() => searchGifs(q), 350);
+    });
+  }
+}
+
 function initChat() {
   if (!document.getElementById("chat-widget")) return;  // page has no chat widget (e.g. bracket)
   const inputRow = document.getElementById("chat-input-row");
@@ -328,6 +445,18 @@ function initChat() {
     bar.className = "chat-reply-bar hidden";
     inputRow.parentNode.insertBefore(bar, inputRow);   // sits just above the input
   }
+  if (inputRow && !inputRow.querySelector(".chat-attach-btn")) {
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/gif,image/png,image/jpeg,image/webp";
+    fileInput.style.display = "none";
+    fileInput.addEventListener("change", () => { if (fileInput.files[0]) { uploadAndSend(fileInput.files[0]); fileInput.value = ""; } });
+    const attach = document.createElement("button");
+    attach.type = "button"; attach.className = "chat-attach-btn"; attach.textContent = "📎"; attach.title = "Upload a GIF or image";
+    attach.addEventListener("click", () => fileInput.click());
+    inputRow.insertBefore(attach, inputRow.querySelector(".chat-send"));
+    inputRow.appendChild(fileInput);
+  }
   document.getElementById("chat-input")?.addEventListener("keydown", e => { if (e.key === "Enter") sendMessage(); });
 
   const { user, sig } = getAuth();
@@ -335,6 +464,7 @@ function initChat() {
     document.getElementById("chat-input-row")?.classList.add("hidden");
     document.getElementById("chat-readonly-note")?.classList.remove("hidden");
   }
+  _initGifPicker(inputRow);
   loadChat();
   setInterval(loadChat, 4_000);
 }

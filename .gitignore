@@ -10,3 +10,7 @@ venv/
 node_modules/
 dist/
 .DS_Store
+
+# runtime chat uploads (prod stores these on the /data volume)
+backend/uploads/
+uploads/
