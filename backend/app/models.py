@@ -27,6 +27,8 @@ class Message(Base):
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     content: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    # The message this one replies to (WhatsApp-style quote); null for a normal message.
+    reply_to_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("messages.id"), nullable=True)
 
     user: Mapped["User"] = relationship("User", back_populates="messages")
 
@@ -143,10 +145,14 @@ class ChatMessage(BaseModel):
     display_name: str
     content: str
     created_at: datetime
+    reply_to_id: Optional[int] = None
+    reply_to_name: Optional[str] = None      # author of the quoted message
+    reply_to_content: Optional[str] = None   # text of the quoted message
 
 
 class ChatRequest(BaseModel):
     content: str
+    reply_to: Optional[int] = None
 
 
 class PredictionHistoryRow(BaseModel):

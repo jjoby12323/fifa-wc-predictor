@@ -225,3 +225,117 @@ function hideChatToast() {
   if (_chatToastHideTimer) clearTimeout(_chatToastHideTimer);
   _chatToastHideTimer = setTimeout(() => { t.classList.add("hidden"); _chatToastHideTimer = null; }, 220);
 }
+
+// ── Smack-talk chat (shared by every page that includes the widget) ──────────
+let _chatOpen = false, _chatLastSeen = 0, _chatPrimed = false, _chatMsgs = [], _chatReplyTo = null, _chatForceBottom = true;
+
+function _clip(s, n) { s = String(s || ""); return s.length > n ? s.slice(0, n - 1) + "…" : s; }
+
+async function loadChat() {
+  const msgs = await apiFetch("/api/chat").catch(() => []);
+  _chatMsgs = msgs;
+  renderChat(msgs);
+
+  const latestId = msgs.length ? msgs[msgs.length - 1].id : 0;
+  if (!_chatPrimed) { _chatLastSeen = latestId; _chatPrimed = true; return; }  // seed baseline
+  if (_chatOpen) { _chatLastSeen = latestId; return; }                          // reading live
+
+  const { user } = getAuth();
+  const unread = msgs.filter(m => m.id > _chatLastSeen && m.username !== user);
+  if (unread.length) {
+    const dot = document.getElementById("chat-unread");
+    dot.textContent = "●"; dot.classList.remove("hidden");
+    showChatToast(unread[unread.length - 1]);
+  }
+}
+
+function renderChat(msgs) {
+  const el = document.getElementById("chat-messages");
+  if (!el) return;
+  const { user } = getAuth();
+  // Only auto-scroll to the newest message if the reader is already near the
+  // bottom — otherwise polling would yank them down while scrolling history.
+  const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+  const prevTop = el.scrollTop;
+  el.innerHTML = msgs.map(m => {
+    const mine = m.username === user ? "mine" : "";
+    const quote = m.reply_to_name
+      ? `<div class="chat-quote"><span class="chat-quote-name">${escHtml(m.reply_to_name)}</span><span class="chat-quote-text">${escHtml(_clip(m.reply_to_content, 80))}</span></div>`
+      : "";
+    return `<div class="chat-msg ${mine}">
+      <span class="chat-name">${escHtml(m.display_name)}</span>
+      <div class="chat-row">
+        <div class="chat-text">${quote}${escHtml(m.content)}</div>
+        <button class="chat-reply-btn" title="Reply" onclick="setReply(${m.id})">↩</button>
+      </div>
+    </div>`;
+  }).join("");
+  el.scrollTop = (_chatForceBottom || atBottom) ? el.scrollHeight : prevTop;
+  _chatForceBottom = false;
+}
+
+function toggleChat() {
+  _chatOpen = !_chatOpen;
+  document.getElementById("chat-body").style.display = _chatOpen ? "flex" : "none";
+  document.getElementById("chat-toggle-icon").textContent = _chatOpen ? "▼" : "▲";
+  document.getElementById("chat-unread").classList.add("hidden");
+  hideChatToast();
+  if (_chatOpen) { _chatForceBottom = true; loadChat(); }  // jump to latest on open
+}
+
+function setReply(id) {
+  const m = _chatMsgs.find(x => x.id === id);
+  if (!m) return;
+  _chatReplyTo = { id: m.id, name: m.display_name, content: m.content };
+  _renderReplyBar();
+  document.getElementById("chat-input")?.focus();
+}
+function clearReply() { _chatReplyTo = null; _renderReplyBar(); }
+function _renderReplyBar() {
+  const bar = document.getElementById("chat-reply-bar");
+  if (!bar) return;
+  if (!_chatReplyTo) { bar.classList.add("hidden"); bar.innerHTML = ""; return; }
+  bar.classList.remove("hidden");
+  bar.innerHTML =
+    `<span class="chat-reply-info">↩ <b>${escHtml(_chatReplyTo.name)}</b> · ${escHtml(_clip(_chatReplyTo.content, 60))}</span>` +
+    `<button class="chat-reply-cancel" title="Cancel" onclick="clearReply()">✕</button>`;
+}
+
+async function sendMessage() {
+  const { user, sig } = getAuth();
+  if (!user || !sig) return;
+  const input = document.getElementById("chat-input");
+  const content = input.value.trim();
+  if (!content) return;
+  input.value = "";
+  const reply_to = _chatReplyTo ? _chatReplyTo.id : null;
+  clearReply();
+  await apiFetch(`/api/chat?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content, reply_to }),
+  }).catch(() => {});
+  _chatForceBottom = true;   // show your own message even if you'd scrolled up
+  await loadChat();
+}
+
+function initChat() {
+  if (!document.getElementById("chat-widget")) return;  // page has no chat widget (e.g. bracket)
+  const inputRow = document.getElementById("chat-input-row");
+  if (inputRow && !document.getElementById("chat-reply-bar")) {
+    const bar = document.createElement("div");
+    bar.id = "chat-reply-bar";
+    bar.className = "chat-reply-bar hidden";
+    inputRow.parentNode.insertBefore(bar, inputRow);   // sits just above the input
+  }
+  document.getElementById("chat-input")?.addEventListener("keydown", e => { if (e.key === "Enter") sendMessage(); });
+
+  const { user, sig } = getAuth();
+  if (!user || !sig) {
+    document.getElementById("chat-input-row")?.classList.add("hidden");
+    document.getElementById("chat-readonly-note")?.classList.remove("hidden");
+  }
+  loadChat();
+  setInterval(loadChat, 4_000);
+}
+initChat();

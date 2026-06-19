@@ -21,17 +21,32 @@ async def get_messages(db: AsyncSession = Depends(get_db)):
         .order_by(Message.created_at.desc())
         .limit(50)
     )
-    rows = result.all()
-    return [
-        ChatMessage(
+    rows = list(reversed(result.all()))  # oldest first for display
+
+    # Resolve the quoted (replied-to) messages — they may be older than the 50 shown.
+    reply_ids = {msg.reply_to_id for msg, _ in rows if msg.reply_to_id}
+    quoted: dict[int, tuple[str, str]] = {}
+    if reply_ids:
+        ref = await db.execute(
+            select(Message, User).join(User, Message.user_id == User.id).where(Message.id.in_(reply_ids))
+        )
+        for m, u in ref.all():
+            quoted[m.id] = (u.display_name, m.content)
+
+    out = []
+    for msg, user in rows:
+        rn, rc = quoted.get(msg.reply_to_id, (None, None))
+        out.append(ChatMessage(
             id=msg.id,
             username=user.username,
             display_name=user.display_name,
             content=msg.content,
             created_at=msg.created_at,
-        )
-        for msg, user in reversed(rows)  # oldest first for display
-    ]
+            reply_to_id=msg.reply_to_id if rn is not None else None,
+            reply_to_name=rn,
+            reply_to_content=rc,
+        ))
+    return out
 
 
 @router.post("/api/chat", response_model=ChatMessage)
@@ -51,14 +66,29 @@ async def post_message(
     if user is None:
         raise HTTPException(status_code=404, detail="User not found.")
 
+    # Validate the reply target (ignore silently if it doesn't exist).
+    ref_row = None
+    if body.reply_to is not None:
+        ref = await db.execute(
+            select(Message, User).join(User, Message.user_id == User.id).where(Message.id == body.reply_to)
+        )
+        ref_row = ref.first()
+    reply_to_id = body.reply_to if ref_row else None
+
     msg = Message(
         user_id=user.id,
         content=content,
         created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        reply_to_id=reply_to_id,
     )
     db.add(msg)
     await db.commit()
     await db.refresh(msg)
+
+    rn = rc = None
+    if ref_row:
+        rmsg, ruser = ref_row
+        rn, rc = ruser.display_name, rmsg.content
 
     return ChatMessage(
         id=msg.id,
@@ -66,4 +96,7 @@ async def post_message(
         display_name=user.display_name,
         content=msg.content,
         created_at=msg.created_at,
+        reply_to_id=reply_to_id,
+        reply_to_name=rn,
+        reply_to_content=rc,
     )

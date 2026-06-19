@@ -8,10 +8,24 @@ from fastapi.staticfiles import StaticFiles
 
 from app.routes import matches, votes, leaderboard, admin, chat, profile, standings
 from app.sync import start_result_scheduler, stop_result_scheduler
+from app.db import engine
+
+
+async def _ensure_schema():
+    """Additive, idempotent column adds for the live DB. Deploys don't run Alembic,
+    so make sure newer columns exist on the existing tables (SQLite ADD COLUMN is
+    safe and a no-op once present / on a fresh DB)."""
+    def _apply(conn):
+        cols = [r[1] for r in conn.exec_driver_sql("PRAGMA table_info(messages)").fetchall()]
+        if cols and "reply_to_id" not in cols:
+            conn.exec_driver_sql("ALTER TABLE messages ADD COLUMN reply_to_id INTEGER")
+    async with engine.begin() as conn:
+        await conn.run_sync(_apply)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await _ensure_schema()
     start_result_scheduler()
     yield
     stop_result_scheduler()

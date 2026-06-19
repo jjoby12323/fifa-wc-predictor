@@ -68,6 +68,7 @@ def upgrade() -> None:
         sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False),
         sa.Column("content", sa.String, nullable=False),
         sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.Column("reply_to_id", sa.Integer, sa.ForeignKey("messages.id"), nullable=True),
     )
     op.create_table(
         "sent_notifications",
