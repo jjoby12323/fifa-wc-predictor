@@ -295,6 +295,8 @@ main { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
 
 /* ── Profile breakdown — one aligned table grouped by matchday ── */
 .bd-wrap { padding: 4px 20px 18px; }
+/* on the leaderboard page the breakdown aligns with its heading (no modal inset) */
+#breakdown-body .bd-wrap { padding-left: 0; padding-right: 0; }
 table.bd-table { width: 100%; border-collapse: collapse; }
 .bd-table td { padding: 7px 0; font-size: 0.86rem; vertical-align: middle; }
 .bd-table td + td { padding-left: 14px; }

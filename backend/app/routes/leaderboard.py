@@ -14,7 +14,7 @@ async def get_leaderboard(
 ):
     # Public — the leaderboard is shared data (it's what the Slack bot posts to
     # everyone), so the link in those posts works without a signed personal URL.
-    # Per-player detail (/api/me, history) stays auth-gated.
+    # Per-player detail (the history endpoint) stays auth-gated.
     rows = await db.execute(
         select(
             User.username,

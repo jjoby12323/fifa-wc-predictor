@@ -171,16 +171,6 @@ class PredictionHistoryRow(BaseModel):
     participation_bonus: int
 
 
-class ScoreRow(BaseModel):
-    match_id: int
-    match_label: str
-    base_points: float
-    streak_bonus: int
-    perfect_round_bonus: int
-    participation_bonus: int
-    total: float
-
-
 class LeaderboardEntry(BaseModel):
     rank: int
     username: str

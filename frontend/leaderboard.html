@@ -37,19 +37,7 @@
 
       <div id="my-breakdown" class="breakdown hidden">
         <h2>Your Match Breakdown</h2>
-        <table class="breakdown-table">
-          <thead>
-            <tr>
-              <th>Match</th>
-              <th>Base</th>
-              <th>Streak</th>
-              <th>Perfect</th>
-              <th>Turnout</th>
-              <th>Total</th>
-            </tr>
-          </thead>
-          <tbody id="breakdown-body"></tbody>
-        </table>
+        <div id="breakdown-body"></div>
       </div>
     </div>
 
@@ -138,23 +126,10 @@
 
       if (user && sig) {
         try {
-          const breakdown = await apiFetch(`/api/me?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`);
-          if (breakdown.length > 0) {
+          const history = await apiFetch(`/api/users/${encodeURIComponent(user)}/history?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`);
+          if (history.some(r => r.result)) {
             document.getElementById("my-breakdown").classList.remove("hidden");
-            const bbody = document.getElementById("breakdown-body");
-            bbody.innerHTML = "";
-            for (const r of breakdown) {
-              const tr = document.createElement("tr");
-              tr.innerHTML = `
-                <td>${escHtml(r.match_label)}</td>
-                <td>${r.base_points}</td>
-                <td>${r.streak_bonus || "—"}</td>
-                <td>${r.perfect_round_bonus || "—"}</td>
-                <td>${r.participation_bonus || "—"}</td>
-                <td><strong>${r.total}</strong></td>
-              `;
-              bbody.appendChild(tr);
-            }
+            document.getElementById("breakdown-body").innerHTML = buildBreakdownHtml(history);
           }
         } catch (_) {}
       }
@@ -163,31 +138,16 @@
         `Last updated: ${new Date().toLocaleTimeString()}`;
     }
 
-    // ── Profile modal ─────────────────────────────────────────────
-    async function openProfile(username, displayName) {
-      const { user, sig } = getAuth();
-      if (!user || !sig) return;
-      document.getElementById("modal-title").textContent = `${displayName}'s Predictions`;
-      document.getElementById("modal-body").innerHTML = `<div class="loading">Loading…</div>`;
-      document.getElementById("profile-modal").classList.remove("hidden");
-
-      const history = await apiFetch(
-        `/api/users/${encodeURIComponent(username)}/history?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`
-      ).catch(err => { document.getElementById("modal-body").innerHTML = `<p class="error">${err.message}</p>`; return null; });
-      if (!history) return;
-
+    // Build the grouped-by-matchday breakdown (shared by the profile modal and
+    // the "Your Match Breakdown" section). Takes /api/users/{name}/history rows.
+    function buildBreakdownHtml(history) {
       const stageLabel = { group: "Group Stage", r32: "Round of 32", r16: "Round of 16", qf: "Quarter-Final", sf: "Semi-Final", final: "Final", third: "3rd Place" };
       const teamOf = (r, pred) => pred === "team_a" ? r.match_label.split(" vs ")[0] : r.match_label.split(" vs ")[1];
 
-      // Group by matchday; only show matchdays with at least one settled match.
       const byMd = {};
       for (const r of history) (byMd[r.matchday] = byMd[r.matchday] || []).push(r);
       const mds = Object.keys(byMd).map(Number).sort((a, b) => a - b).filter(md => byMd[md].some(r => r.result));
-
-      if (!mds.length) {
-        document.getElementById("modal-body").innerHTML = `<p class="empty-note" style="padding:24px">No settled matches yet.</p>`;
-        return;
-      }
+      if (!mds.length) return `<p class="empty-note" style="padding:24px">No settled matches yet.</p>`;
 
       const ptsTxt = n => (n ? "+" + n : "0");
       let grand = 0;
@@ -221,9 +181,23 @@
         if (turnout) trs.push(`<tr class="bd-bonus"><td colspan="3">🙌 Turnout</td><td class="bd-pts">+${turnout}</td></tr>`);
       }
       trs.push(`<tr class="bd-grand"><td colspan="3">Total</td><td class="bd-pts">${grand} pt${grand === 1 ? "" : "s"}</td></tr>`);
+      return `<div class="bd-wrap"><table class="bd-table"><tbody>${trs.join("")}</tbody></table></div>`;
+    }
 
-      document.getElementById("modal-body").innerHTML =
-        `<div class="bd-wrap"><table class="bd-table"><tbody>${trs.join("")}</tbody></table></div>`;
+    // ── Profile modal ─────────────────────────────────────────────
+    async function openProfile(username, displayName) {
+      const { user, sig } = getAuth();
+      if (!user || !sig) return;
+      document.getElementById("modal-title").textContent = `${displayName}'s Predictions`;
+      document.getElementById("modal-body").innerHTML = `<div class="loading">Loading…</div>`;
+      document.getElementById("profile-modal").classList.remove("hidden");
+
+      const history = await apiFetch(
+        `/api/users/${encodeURIComponent(username)}/history?user=${encodeURIComponent(user)}&sig=${encodeURIComponent(sig)}`
+      ).catch(err => { document.getElementById("modal-body").innerHTML = `<p class="error">${err.message}</p>`; return null; });
+      if (!history) return;
+
+      document.getElementById("modal-body").innerHTML = buildBreakdownHtml(history);
     }
 
     function closeProfile(e) {
