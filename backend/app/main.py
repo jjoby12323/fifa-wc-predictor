@@ -2,7 +2,7 @@ import os
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 load_dotenv()
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -44,6 +44,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def cache_control(request: Request, call_next):
+    """Make deploys show up on the next reload without users clearing their cache.
+
+    HTML/JS/CSS use `no-cache` — the browser revalidates every load (cheap 304 when
+    unchanged, fresh 200 right after a deploy). The dynamic API is never cached, and
+    the immutable uploaded files are cached long-term.
+    """
+    response = await call_next(request)
+    path = request.url.path
+    if path.startswith("/uploads/"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    elif path.startswith("/api/") or path.startswith("/admin/"):
+        response.headers["Cache-Control"] = "no-store"
+    else:
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
 
 app.include_router(matches.router)
 app.include_router(votes.router)
