@@ -374,6 +374,7 @@ table.bd-table { width: 100%; border-collapse: collapse; }
 .modal-body {
   overflow-y: auto;
   flex: 1;
+  min-height: 0;   /* allow the body to scroll inside the max-height modal so the header/✕ stay visible */
 }
 
 /* stage badge in modal header */
@@ -1183,4 +1184,11 @@ table.bd-table { width: 100%; border-collapse: collapse; }
 
   .mo-split-col { padding: 12px; }
   .mo-pred-section { padding: 16px 16px 20px; }
+
+  /* standings: one column so the cards fit the screen (no horizontal overflow) */
+  .groups-grid { grid-template-columns: 1fr; }
+  .tab-panel { padding-left: 12px; padding-right: 12px; }
+
+  /* chat: dock to both edges so it isn't pushed off the left of the screen */
+  .chat-widget { left: 8px; right: 8px; width: auto; }
 }
