@@ -210,9 +210,14 @@
 
       let resultHtml = "";
       if (m.status === "settled" && m.result) {
+        const cardHasScore = m.score_a != null && m.score_b != null;
+        const cardPens = cardHasScore && m.result !== "draw" && m.score_a === m.score_b && m.stage !== "group";
+        // Scoreline first, then a separate "pens" tag — never mashed together.
+        const scoreChip = cardHasScore ? ` <span class="result-score">${m.score_a}–${m.score_b}</span>` : "";
+        const pensTag = cardPens ? ` <span class="result-pens">pens</span>` : "";
         resultHtml = m.result === "draw"
-          ? `<div class="result-badge">Result: <strong>Draw</strong></div>`
-          : `<div class="result-badge">Winner: <strong>${escHtml(m.result === "team_a" ? m.team_a : m.team_b)}</strong></div>`;
+          ? `<div class="result-badge">Result: <strong>Draw</strong>${scoreChip}</div>`
+          : `<div class="result-badge">Winner: <strong>${escHtml(m.result === "team_a" ? m.team_a : m.team_b)}</strong>${scoreChip}${pensTag}</div>`;
       }
 
       card.innerHTML = `
@@ -292,6 +297,11 @@
       const winnerA = m.result === "team_a";
       const winnerB = m.result === "team_b";
       const drawResult = m.result === "draw";
+      const hasScore = m.score_a != null && m.score_b != null;
+      // Penalties only exist in knockouts. A level full-time score there with a decided
+      // winner means it went to a shootout (this tier gives no penalty tally). A level
+      // group game is just a draw, so never label the group stage as "penalties".
+      const wonOnPens = hasScore && !drawResult && m.score_a === m.score_b && m.stage !== "group";
 
       // ── Voting action: pick / change / remove when open, read-only otherwise ──
       let actionHtml = "";
@@ -347,7 +357,8 @@
 
             <div class="mo-vs-col">
               ${m.result
-                ? `<div class="mo-result-crown">${drawResult ? "Draw" : (winnerA ? escHtml(m.team_a) : escHtml(m.team_b)) + " wins"}</div>`
+                ? `<div class="mo-result-crown">${drawResult ? "Draw" : (winnerA ? escHtml(m.team_a) : escHtml(m.team_b)) + " wins"}</div>
+                   ${hasScore ? `<div class="mo-score">${m.score_a} <span class="mo-score-dash">–</span> ${m.score_b}</div>${wonOnPens ? `<div class="mo-score-note">on penalties</div>` : ""}` : ""}`
                 : `<div class="mo-vs">VS</div>`}
               <div class="mo-kickoff-time">🕐 ${kickoffStr}</div>
               ${m.stage !== "group" ? `<div class="mo-stage-note">${stageLabel}</div>` : ""}

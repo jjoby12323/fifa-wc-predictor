@@ -20,6 +20,11 @@ async def _ensure_schema():
         cols = [r[1] for r in conn.exec_driver_sql("PRAGMA table_info(messages)").fetchall()]
         if cols and "reply_to_id" not in cols:
             conn.exec_driver_sql("ALTER TABLE messages ADD COLUMN reply_to_id INTEGER")
+        mcols = [r[1] for r in conn.exec_driver_sql("PRAGMA table_info(matches)").fetchall()]
+        if mcols and "score_a" not in mcols:
+            conn.exec_driver_sql("ALTER TABLE matches ADD COLUMN score_a INTEGER")
+        if mcols and "score_b" not in mcols:
+            conn.exec_driver_sql("ALTER TABLE matches ADD COLUMN score_b INTEGER")
     async with engine.begin() as conn:
         await conn.run_sync(_apply)
 

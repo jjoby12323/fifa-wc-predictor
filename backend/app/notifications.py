@@ -149,7 +149,7 @@ async def announce_match_result(db, match: Match) -> None:
     if match.result not in ("team_a", "team_b", "draw"):
         return  # unknown — nothing to announce
     text = slack.build_result_text(
-        match.team_a, match.team_b, match.result, match.fifa_rank_a, match.fifa_rank_b
+        match.team_a, match.team_b, match.result, match.score_a, match.score_b, match.stage
     )
     if await slack.post_to_slack(text):
         await _mark_sent(db, key)

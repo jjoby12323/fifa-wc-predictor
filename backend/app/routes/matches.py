@@ -78,6 +78,8 @@ async def get_matches(
             matchday=m.matchday,
             status=status,
             result=m.result,
+            score_a=m.score_a,
+            score_b=m.score_b,
             my_vote=my_vote,
             correct=correct,
         ))
@@ -136,6 +138,8 @@ async def get_match_detail(
         matchday=match.matchday,
         status=status,
         result=match.result,
+        score_a=match.score_a,
+        score_b=match.score_b,
         fifa_rank_a=match.fifa_rank_a,
         fifa_rank_b=match.fifa_rank_b,
         my_vote=my_vote,

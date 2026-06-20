@@ -6,10 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import httpx
+
 from app.db import get_db
 from app.models import Match, Vote, Score, User, Message, SettleRequest, AnnounceRequest
 from app.scoring import compute_all_scores, MatchData, VoteData
 from app.slack import post_to_slack, slack_enabled
+from app.fixtures import FD_BASE, parse_fulltime_score
 
 IST_OFFSET = timedelta(hours=5, minutes=30)
 
@@ -108,6 +111,49 @@ async def reset_all(
     await db.execute(delete(User))
     await db.commit()
     return {"status": "reset", "cleared": ["votes", "scores", "matches", "users"]}
+
+
+@router.post("/admin/backfill-scores")
+async def backfill_scores(
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_admin),
+):
+    """One-time: fill final scores for matches that settled before score capture existed.
+
+    Re-fetches the WC fixtures once and writes score_a/score_b where they're missing on an
+    already-settled match. Touches only the score columns — never the result, the points,
+    or Slack. Safe to run repeatedly (skips matches that already have a score).
+    """
+    api_key = os.getenv("FOOTBALLDATA_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=400, detail="FOOTBALLDATA_API_KEY not set.")
+
+    async with httpx.AsyncClient(headers={"X-Auth-Token": api_key}, timeout=20) as client:
+        resp = await client.get(f"{FD_BASE}/competitions/WC/matches")
+        resp.raise_for_status()
+        api_matches = resp.json().get("matches", [])
+
+    score_by_ext: dict[int, tuple[int, int]] = {}
+    for am in api_matches:
+        if am.get("status") == "FINISHED":
+            sa, sb = parse_fulltime_score(am)
+            if sa is not None and sb is not None:
+                score_by_ext[am["id"]] = (sa, sb)
+
+    ours = (await db.execute(
+        select(Match).where(Match.result.isnot(None), Match.external_id.isnot(None))
+    )).scalars().all()
+
+    updated = []
+    for m in ours:
+        if m.score_a is not None and m.score_b is not None:
+            continue  # already has a score — leave it
+        sc = score_by_ext.get(m.external_id)
+        if sc:
+            m.score_a, m.score_b = sc
+            updated.append(f"{m.match_label} {sc[0]}-{sc[1]}")
+    await db.commit()
+    return {"status": "ok", "settled": len(ours), "filled": len(updated), "matches": updated}
 
 
 @router.post("/admin/slack-test")

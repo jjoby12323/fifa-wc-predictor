@@ -18,7 +18,7 @@ from app.models import Match, Vote, Score, User
 from app.scoring import compute_all_scores, MatchData, VoteData
 from app import slack, notifications
 from app.notifications import announce_match_result
-from app.fixtures import sync_fixtures
+from app.fixtures import sync_fixtures, parse_fulltime_score
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +81,7 @@ async def _async_sync_results():
                     continue
 
                 match.result = result
+                match.score_a, match.score_b = parse_fulltime_score(data)
                 await db.flush()
                 await _recompute_scores(db)
                 await announce_match_result(db, match)

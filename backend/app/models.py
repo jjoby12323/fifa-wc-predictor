@@ -59,6 +59,9 @@ class Match(Base):
     fifa_rank_b: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
     # "team_a" | "team_b" | "draw" | None (not yet settled)
     result: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    # Final score in goals (team_a = home, team_b = away); set when settled, null until then.
+    score_a: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    score_b: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     votes: Mapped[list["Vote"]] = relationship("Vote", back_populates="match")
     scores: Mapped[list["Score"]] = relationship("Score", back_populates="match")
@@ -113,6 +116,8 @@ class MatchStatus(BaseModel):
     matchday: int
     status: str  # "pending" | "open" | "closed" | "settled"
     result: Optional[str]
+    score_a: Optional[int] = None
+    score_b: Optional[int] = None
     my_vote: Optional[str]
     correct: Optional[bool]
 
@@ -133,6 +138,8 @@ class MatchDetail(BaseModel):
     matchday: int
     status: str
     result: Optional[str]
+    score_a: Optional[int] = None
+    score_b: Optional[int] = None
     fifa_rank_a: int
     fifa_rank_b: int
     my_vote: Optional[str]

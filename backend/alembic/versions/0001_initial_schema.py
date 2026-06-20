@@ -40,6 +40,8 @@ def upgrade() -> None:
         sa.Column("fifa_rank_a", sa.Integer, nullable=False, server_default="50"),
         sa.Column("fifa_rank_b", sa.Integer, nullable=False, server_default="50"),
         sa.Column("result", sa.String, nullable=True),
+        sa.Column("score_a", sa.Integer, nullable=True),
+        sa.Column("score_b", sa.Integer, nullable=True),
     )
     op.create_table(
         "votes",

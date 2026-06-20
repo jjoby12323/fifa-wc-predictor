@@ -521,6 +521,38 @@ table.bd-table { width: 100%; border-collapse: collapse; }
   line-height: 1.4;
 }
 
+/* Final scoreline under the crown (team_a – team_b, matching the team columns) */
+.mo-score {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  margin-top: 2px;
+}
+.mo-score-dash { color: var(--muted); font-weight: 600; }
+.mo-score-note { font-size: 0.66rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* Compact scoreline appended to the card's result badge */
+.result-score {
+  margin-left: 8px;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--surface2);
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 0.82rem;
+}
+/* Separate "pens" tag after the scoreline (knockouts only) */
+.result-pens {
+  margin-left: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .mo-kickoff-time {
   font-size: 0.72rem;
   color: var(--muted);

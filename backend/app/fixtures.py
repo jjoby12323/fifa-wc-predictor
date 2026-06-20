@@ -52,6 +52,16 @@ def _ist_date(kickoff_utc: datetime):
     return (kickoff_utc + IST_OFFSET).date()
 
 
+def parse_fulltime_score(match_payload: dict) -> tuple[int | None, int | None]:
+    """(home_goals, away_goals) from a football-data match payload, or (None, None).
+
+    Uses score.fullTime — the score that stands at the end of play (incl. extra time).
+    A knockout decided on penalties shows level here; the winner field still resolves it.
+    """
+    ft = (match_payload.get("score") or {}).get("fullTime") or {}
+    return ft.get("home"), ft.get("away")
+
+
 async def sync_fixtures(set_results: bool = True) -> int:
     """
     Upsert every WC fixture; returns the number processed.
@@ -103,12 +113,14 @@ async def sync_fixtures(set_results: bool = True) -> int:
             match_label = f"{home} vs {away}"
 
             result = None
+            score_a = score_b = None
             if set_results and m.get("status") == "FINISHED":
                 winner = (m.get("score") or {}).get("winner")
                 if winner == "HOME_TEAM":
                     result = "team_a"
                 elif winner == "AWAY_TEAM":
                     result = "team_b"
+                score_a, score_b = parse_fulltime_score(m)
 
             existing = await db.execute(select(Match).where(Match.external_id == m["id"]))
             existing_match = existing.scalar_one_or_none()
@@ -124,6 +136,9 @@ async def sync_fixtures(set_results: bool = True) -> int:
                 existing_match.fifa_rank_b = rankings.get(away, 50)
                 if result:
                     existing_match.result = result
+                if score_a is not None and score_b is not None:
+                    existing_match.score_a = score_a
+                    existing_match.score_b = score_b
             else:
                 db.add(Match(
                     external_id=m["id"],
@@ -137,6 +152,8 @@ async def sync_fixtures(set_results: bool = True) -> int:
                     fifa_rank_a=rankings.get(home, 50),
                     fifa_rank_b=rankings.get(away, 50),
                     result=result,
+                    score_a=score_a,
+                    score_b=score_b,
                 ))
         await db.commit()
 

@@ -65,15 +65,25 @@ def build_reminder_text(date_label: str, names: list[str], hours_before: int) ->
     )
 
 
-def build_result_text(team_a: str, team_b: str, result: str, rank_a: int, rank_b: int) -> str:
+def build_result_text(team_a: str, team_b: str, result: str,
+                      score_a: int | None = None, score_b: int | None = None,
+                      stage: str = "group") -> str:
+    have_score = score_a is not None and score_b is not None
     if result == "draw":
+        if have_score:
+            return f":soccer: Full time: *{team_a}* {score_a}–{score_b} *{team_b}*. :handshake:"
         return f":soccer: Full time: *{team_a}* and *{team_b}* played out a draw. :handshake:"
     if result == "team_a":
-        winner, loser, upset = team_a, team_b, rank_a > rank_b
+        winner, loser, win_goals, lose_goals = team_a, team_b, score_a, score_b
     else:
-        winner, loser, upset = team_b, team_a, rank_b > rank_a
-    bolt = "  :zap: *Upset!*" if upset else ""
-    return f":soccer: Full time: *{winner}* beat {loser}.{bolt}"
+        winner, loser, win_goals, lose_goals = team_b, team_a, score_b, score_a
+    if not have_score:
+        return f":soccer: Full time: *{winner}* beat {loser}."
+    # A level full-time score with a winner only happens in a knockout shootout —
+    # the group stage can't go to penalties (a level group game is a draw).
+    if win_goals == lose_goals and stage != "group":
+        return f":soccer: Full time: *{winner}* beat {loser} on penalties ({win_goals}–{lose_goals})."
+    return f":soccer: Full time: *{winner}* beat {loser} *{win_goals}–{lose_goals}*."
 
 
 def build_leaderboard_text(entries: list[dict], title: str = "Standings") -> str:
