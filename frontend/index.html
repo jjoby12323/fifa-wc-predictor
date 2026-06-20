@@ -177,6 +177,13 @@
       document.getElementById("day-select")?.addEventListener("change", e => { view = e.target.value; render(); });
     }
 
+    function cardFlag(team) {
+      const url = getFlagUrl(team);
+      return url
+        ? `<img class="rc-flag" src="${url}" alt="" onerror="this.style.visibility='hidden'">`
+        : `<span class="rc-flag rc-flag-ph">🏳</span>`;
+    }
+
     function renderMatchCard(m, user, sig) {
       const card = document.createElement("div");
       card.className = `match-card status-${m.status} clickable`;
@@ -187,51 +194,61 @@
       });
 
       const kickoff = new Date(m.kickoff_utc + "Z");
+      const dateStr = kickoff.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
       const stageLabel = { group: "Group Stage", r32: "Round of 32", r16: "Round of 16", qf: "Quarter-Final", sf: "Semi-Final", final: "Final", third: "3rd Place" }[m.stage] || m.stage;
-      const statusLabel = { pending: "Not Open Yet", open: "Voting Open", closed: "Kicked Off", settled: "Settled" }[m.status] || m.status;
+      const [badgeText, badgeCls] = ({
+        settled: ["Full time", "rc-b-ft"],
+        closed:  ["Kicked off", "rc-b-ko"],
+        open:    ["Voting open", "rc-b-vo"],
+        pending: ["Not open yet", "rc-b-soon"],
+      })[m.status] || [m.status, "rc-b-soon"];
 
+      // ── Scoreboard: flag + name (+ score when settled); winner bright, loser dim ──
+      const settled = m.status === "settled" && m.result;
+      const hasScore = m.score_a != null && m.score_b != null;
+      const pens = settled && hasScore && m.result !== "draw" && m.score_a === m.score_b && m.stage !== "group";
+      let aCls = "", bCls = "";
+      if (settled && m.result !== "draw") {
+        aCls = m.result === "team_a" ? "win" : "lose";
+        bCls = m.result === "team_b" ? "win" : "lose";
+      }
+      const scoreA = hasScore ? `<span class="rc-score">${m.score_a}</span>` : "";
+      const scoreB = hasScore ? `<span class="rc-score">${m.score_b}</span>` : "";
+      const scoreboard = `
+        <div class="rc-row ${aCls}">${cardFlag(m.team_a)}<span class="rc-name">${escHtml(m.team_a)}</span>${scoreA}</div>
+        <div class="rc-divln"></div>
+        <div class="rc-row ${bCls}">${cardFlag(m.team_b)}<span class="rc-name">${escHtml(m.team_b)}</span>${scoreB}</div>`;
+
+      let noteHtml = "";
+      if (pens) noteHtml = `<div class="rc-note">Won on penalties</div>`;
+      else if (m.status === "closed") noteHtml = `<div class="rc-note"><span class="rc-live"></span> In progress — result pending</div>`;
+
+      // ── Action: vote buttons when open & unpicked, otherwise the "Your pick" chip ──
       let actionHtml = "";
       if (m.status === "open" && !m.my_vote) {
         actionHtml = `
-          <div class="vote-buttons">
-            <div class="vote-option">
-              <button class="btn-vote" onclick="vote(${m.id}, 'team_a')">Vote ${escHtml(m.team_a)}</button>
-            </div>
-            <div class="vote-option">
-              <button class="btn-vote" onclick="vote(${m.id}, 'team_b')">Vote ${escHtml(m.team_b)}</button>
-            </div>
+          <div class="rc-vbtns">
+            <button class="rc-vb" onclick="vote(${m.id}, 'team_a')">${cardFlag(m.team_a)} ${escHtml(m.team_a)}</button>
+            <button class="rc-vb" onclick="vote(${m.id}, 'team_b')">${cardFlag(m.team_b)} ${escHtml(m.team_b)}</button>
           </div>`;
       } else if (m.my_vote) {
         const votedFor = pickName(m, m.my_vote);
-        const indicator = m.correct === true ? " ✓" : m.correct === false ? " ✗" : "";
-        const cls = m.correct === true ? "correct" : m.correct === false ? "wrong" : "";
-        actionHtml = `<div class="voted-badge ${cls}">Your pick: <strong>${escHtml(votedFor)}</strong>${indicator}</div>`;
-      }
-
-      let resultHtml = "";
-      if (m.status === "settled" && m.result) {
-        const cardHasScore = m.score_a != null && m.score_b != null;
-        const cardPens = cardHasScore && m.result !== "draw" && m.score_a === m.score_b && m.stage !== "group";
-        // Scoreline first, then a separate "pens" tag — never mashed together.
-        const scoreChip = cardHasScore ? ` <span class="result-score">${m.score_a}–${m.score_b}</span>` : "";
-        const pensTag = cardPens ? ` <span class="result-pens">pens</span>` : "";
-        resultHtml = m.result === "draw"
-          ? `<div class="result-badge">Result: <strong>Draw</strong>${scoreChip}</div>`
-          : `<div class="result-badge">Winner: <strong>${escHtml(m.result === "team_a" ? m.team_a : m.team_b)}</strong>${scoreChip}${pensTag}</div>`;
+        let pcls = "", mark = "";
+        if (m.correct === true) { pcls = "ok"; mark = `<span class="rc-mk">✓</span> `; }
+        else if (m.correct === false) { pcls = "no"; mark = `<span class="rc-mk">✗</span> `; }
+        else if (settled && m.result === "draw") { pcls = "draw"; }   // amber colour signals the draw — no label needed
+        else if (m.status === "closed") { mark = `<span class="rc-lock">🔒</span> `; }
+        actionHtml = `<div class="rc-pick ${pcls}">${mark}Your pick: <strong>${escHtml(votedFor)}</strong></div>`;
       }
 
       card.innerHTML = `
-        <div class="match-header">
-          <span class="stage-tag">${stageLabel}</span>
-          <span class="status-tag ${m.status}">${statusLabel}</span>
+        <div class="rc-top">
+          <span class="rc-stage">${stageLabel}</span>
+          <span class="rc-date">${dateStr}</span>
+          <span class="rc-badge ${badgeCls}">${badgeText}</span>
         </div>
-        <div class="teams">
-          <span class="team">${escHtml(m.team_a)}</span>
-          <span class="vs">vs</span>
-          <span class="team">${escHtml(m.team_b)}</span>
-        </div>
-        <div class="kickoff">${kickoff.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" })}</div>
-        ${resultHtml}
+        ${scoreboard}
+        ${noteHtml}
         ${actionHtml}
         <div class="vote-error hidden" id="err-${m.id}"></div>
       `;
@@ -349,7 +366,7 @@
 
           <!-- Teams row -->
           <div class="mo-teams-row">
-            <div class="mo-team ${winnerA ? "mo-winner" : ""}">
+            <div class="mo-team ${winnerA ? "mo-winner" : (m.result && !drawResult ? "mo-loser" : "")}">
               <div class="mo-flag-wrap">${flagImgA}</div>
               <div class="mo-team-name">${escHtml(m.team_a)}</div>
               <div class="mo-rank">FIFA #${m.fifa_rank_a}</div>
@@ -364,7 +381,7 @@
               ${m.stage !== "group" ? `<div class="mo-stage-note">${stageLabel}</div>` : ""}
             </div>
 
-            <div class="mo-team ${winnerB ? "mo-winner" : ""}">
+            <div class="mo-team ${winnerB ? "mo-winner" : (m.result && !drawResult ? "mo-loser" : "")}">
               <div class="mo-flag-wrap">${flagImgB}</div>
               <div class="mo-team-name">${escHtml(m.team_b)}</div>
               <div class="mo-rank">FIFA #${m.fifa_rank_b}</div>

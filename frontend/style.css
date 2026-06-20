@@ -10,6 +10,7 @@
   --muted: #8b949e;
   --red: #f85149;
   --blue: #388bfd;
+  --purple: #a371f7;
   --radius: 10px;
 }
 
@@ -118,7 +119,7 @@ main { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
   padding: 2px 9px; border-radius: 20px;
 }
 .md-tag-open { background: rgba(26,122,74,0.22); color: #4caf7d; }
-.md-tag-done { background: rgba(245,197,24,0.15); color: var(--gold); }
+.md-tag-done { background: rgba(163,113,247,0.16); color: var(--purple); }
 .md-tag-soon { background: var(--surface2); color: var(--muted); }
 
 /* ── Match card ─────────────────────────────────────────── */
@@ -132,82 +133,43 @@ main { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
   transition: border-color 0.15s;
 }
 
-.match-card.status-open { border-left: 3px solid var(--green); }
-.match-card.status-pending { opacity: 0.7; }
-.match-card.status-settled { border-left: 3px solid var(--gold); }
+/* Status is shown by the coloured badge (rc-badge), not a left accent. */
+.match-card.status-pending { opacity: 0.65; }
 
-.match-header {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
-  align-items: center;
-}
+/* ── Match card: scoreboard layout ──────────────────────────── */
+.rc-top { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.rc-stage { font-size: 0.75rem; color: var(--muted); background: var(--surface2); padding: 2px 9px; border-radius: 5px; }
+.rc-date { font-size: 0.75rem; color: var(--muted); }
+.rc-badge { margin-left: auto; font-size: 0.68rem; font-weight: 700; padding: 3px 9px; border-radius: 5px; letter-spacing: 0.02em; white-space: nowrap; }
+.rc-b-ft   { background: rgba(163,113,247,0.16); color: var(--purple); }
+.rc-b-ko   { background: rgba(56,139,253,0.16); color: var(--blue); }
+.rc-b-vo   { background: rgba(26,122,74,0.26); color: #4caf7d; }
+.rc-b-soon { background: var(--surface2); color: var(--muted); }
 
-.stage-tag {
-  font-size: 0.75rem;
-  color: var(--muted);
-  background: var(--surface2);
-  padding: 2px 8px;
-  border-radius: 4px;
-}
+.rc-row { display: flex; align-items: center; padding: 4px 0; }
+.rc-flag { width: 26px; height: 18px; object-fit: cover; border-radius: 2px; margin-right: 11px; flex-shrink: 0; }
+.rc-flag-ph { font-size: 18px; line-height: 1; }
+.rc-name { flex: 1; min-width: 0; font-size: 1rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-score { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 26px; text-align: right; color: var(--text); }
+.rc-row.lose .rc-name { font-weight: 500; color: var(--muted); }
+.rc-row.lose .rc-score { color: #586069; }
+.rc-divln { height: 1px; background: var(--surface2); margin: 1px 0; }
 
-.status-tag {
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 4px;
-  margin-left: auto;
-}
-.status-tag.open     { background: rgba(26,122,74,0.25); color: #4caf7d; }
-.status-tag.pending  { background: var(--surface2); color: var(--muted); }
-.status-tag.closed   { background: rgba(56,139,253,0.15); color: var(--blue); }
-.status-tag.settled  { background: rgba(245,197,24,0.15); color: var(--gold); }
+.rc-note { font-size: 0.82rem; color: var(--muted); margin-top: 9px; display: flex; align-items: center; gap: 7px; }
+.rc-live { width: 7px; height: 7px; border-radius: 50%; background: var(--blue); display: inline-block; flex-shrink: 0; }
 
-.teams {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
+.rc-pick { display: inline-flex; align-items: center; gap: 5px; font-size: 0.85rem; margin-top: 12px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); }
+.rc-pick strong { font-weight: 700; margin-left: 3px; color: inherit; }
+.rc-pick.ok { border-color: rgba(26,122,74,0.55); color: #4caf7d; }
+.rc-pick.no { border-color: rgba(248,81,73,0.5); color: var(--red); }
+.rc-pick.draw { border-color: rgba(210,169,58,0.5); color: #d2a93a; }   /* draw = half-point consolation */
+.rc-mk { font-weight: 700; }
 
-.vs { color: var(--muted); font-size: 0.85rem; font-weight: 400; }
-
-.kickoff { font-size: 0.8rem; color: var(--muted); margin-bottom: 12px; }
-
-.vote-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
-
-.btn-vote {
-  background: var(--green);
-  color: #fff;
-  border: none;
-  padding: 8px 18px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 600;
-  transition: background 0.15s;
-}
-.btn-vote:hover { background: var(--green-dark); }
-
-.voted-badge {
-  display: inline-block;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-size: 0.88rem;
-  color: var(--muted);
-}
-.voted-badge.correct { border-color: var(--green); color: #4caf7d; }
-.voted-badge.wrong   { border-color: var(--red); color: var(--red); }
-
-.result-badge {
-  font-size: 0.85rem;
-  color: var(--gold);
-  margin-bottom: 8px;
-}
+.rc-vbtns { display: flex; gap: 10px; margin-top: 12px; }
+/* Calm, outlined vote buttons (match the modal) — green is the hover/selected cue, not the resting state */
+.rc-vb { flex: 1; background: var(--surface2); color: var(--text); border: 1px solid var(--border); padding: 10px 0; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.15s, border-color 0.15s; }
+.rc-vb:hover { border-color: var(--green); background: #1c2230; }
+.rc-vb .rc-flag { margin-right: 0; }
 
 .vote-error {
   margin-top: 8px;
@@ -275,11 +237,6 @@ main { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
   font-size: 0.78rem;
   margin-top: 24px;
 }
-
-/* ── Underdog badge ─────────────────────────────────────────── */
-
-.vote-buttons { display: flex; gap: 16px; flex-wrap: wrap; }
-.vote-option { display: flex; flex-direction: column; gap: 4px; }
 
 /* ── Profile link ───────────────────────────────────────────── */
 
@@ -484,11 +441,13 @@ table.bd-table { width: 100%; border-collapse: collapse; }
   font-variant-numeric: tabular-nums;
 }
 
-/* winner gets gold */
-.mo-team.mo-winner .mo-team-name { color: var(--gold); }
+/* winner stays bright with a subtle purple ring; loser recedes */
+.mo-team.mo-winner .mo-team-name { color: var(--text); }
 .mo-team.mo-winner .mo-flag-wrap {
-  box-shadow: 0 0 0 2px rgba(245,197,24,0.6), 0 4px 20px rgba(245,197,24,0.2);
+  box-shadow: 0 0 0 2px rgba(163,113,247,0.55), 0 4px 20px rgba(163,113,247,0.18);
 }
+.mo-team.mo-loser .mo-team-name { color: var(--muted); }
+.mo-team.mo-loser .mo-flag-wrap { opacity: 0.7; }
 
 /* VS / result in centre column */
 .mo-vs-col {
@@ -512,10 +471,10 @@ table.bd-table { width: 100%; border-collapse: collapse; }
 .mo-result-crown {
   font-size: 0.78rem;
   font-weight: 700;
-  color: var(--gold);
+  color: var(--purple);
   text-align: center;
-  background: rgba(245,197,24,0.1);
-  border: 1px solid rgba(245,197,24,0.3);
+  background: rgba(163,113,247,0.12);
+  border: 1px solid rgba(163,113,247,0.3);
   border-radius: 20px;
   padding: 3px 10px;
   line-height: 1.4;
@@ -532,26 +491,6 @@ table.bd-table { width: 100%; border-collapse: collapse; }
 }
 .mo-score-dash { color: var(--muted); font-weight: 600; }
 .mo-score-note { font-size: 0.66rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-
-/* Compact scoreline appended to the card's result badge */
-.result-score {
-  margin-left: 8px;
-  font-weight: 700;
-  color: var(--text);
-  background: var(--surface2);
-  padding: 1px 8px;
-  border-radius: 4px;
-  font-size: 0.82rem;
-}
-/* Separate "pens" tag after the scoreline (knockouts only) */
-.result-pens {
-  margin-left: 6px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
 
 .mo-kickoff-time {
   font-size: 0.72rem;
@@ -624,8 +563,7 @@ table.bd-table { width: 100%; border-collapse: collapse; }
   border-radius: 0 20px 20px 0;
   transition: width 0.4s ease;
 }
-.mo-bar-a.mo-bar-win { background: var(--gold); }
-.mo-bar-b.mo-bar-win { background: var(--gold); }
+/* winner keeps its own team colour — no gold */
 
 /* split columns for names */
 .mo-split {
@@ -659,7 +597,7 @@ table.bd-table { width: 100%; border-collapse: collapse; }
   letter-spacing: 0.05em;
 }
 
-.mo-split-head.mo-split-head-win { color: var(--gold); }
+.mo-split-head.mo-split-head-win { color: var(--text); }
 
 .mo-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 
@@ -766,7 +704,7 @@ table.bd-table { width: 100%; border-collapse: collapse; }
 .mo-vote-locked strong { color: var(--text); }
 .mo-mark-ok { color: #4caf7d; }
 .mo-mark-no { color: var(--red); }
-.mo-mark-draw { color: var(--muted); }
+.mo-mark-draw { color: #d2a93a; }
 
 /* ── Modal (profile / generic) table rows ───────────────────── */
 .modal-body tr.correct td { color: #4caf7d; }
@@ -1210,7 +1148,6 @@ table.bd-table { width: 100%; border-collapse: collapse; }
 
 @media (max-width: 600px) {
   header { padding: 16px; }
-  .teams { font-size: 1rem; }
   .leaderboard-table th:nth-child(n+5),
   .leaderboard-table td:nth-child(n+5) { display: none; }
 
