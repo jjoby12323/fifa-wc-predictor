@@ -178,14 +178,16 @@
       inner.querySelectorAll("svg.br2-lines").forEach(s => s.remove());
 
       if (window.matchMedia("(max-width: 600px)").matches) {
-        const mcol = (label, ms) => (ms && ms.length)
-          ? `<div class="brm-col"><div class="br2-round-head">${label}</div>${ms.map(bracketMatchHtml).join("")}</div>`
+        // leaf = 3rd-place (not part of the R32→Final chain, so it gets no connector)
+        const mcol = (label, ms, leaf) => (ms && ms.length)
+          ? `<div class="brm-col${leaf ? " brm-col--leaf" : ""}"><div class="br2-round-head">${label}</div><div class="brm-body">${ms.map(bracketMatchHtml).join("")}</div></div>`
           : "";
         inner.className = "bracket-inner brm";
         inner.innerHTML =
           mcol("R32", byStage.r32) + mcol("R16", byStage.r16) + mcol("QF", byStage.qf) +
-          mcol("SF", byStage.sf) + mcol("Final", byStage.final) + mcol("3rd Place", byStage.third);
-        return;  // linear flow — no connectors needed
+          mcol("SF", byStage.sf) + mcol("Final", byStage.final) + mcol("3rd Place", byStage.third, true);
+        requestAnimationFrame(drawConnectors);
+        return;
       }
 
       // Split each round in half — left side feeds inward, right side mirrors.
@@ -222,7 +224,7 @@
     // so they always line up regardless of how the cards flow.
     function drawConnectors() {
       const inner = document.getElementById("bracket-inner");
-      if (!inner || !inner.querySelector(".br2-side")) return;
+      if (!inner || (!inner.querySelector(".br2-side") && !inner.classList.contains("brm"))) return;
       inner.querySelectorAll("svg.br2-lines").forEach(s => s.remove());
       const NS = "http://www.w3.org/2000/svg";
       const svg = document.createElementNS(NS, "svg");
@@ -254,6 +256,13 @@
           if (from[2 * k + 1]) elbow(from[2 * k + 1], to[k], dir);
         }
       };
+
+      // Mobile single-side: chain rounds left-to-right (R32→R16→QF→SF→Final), skipping 3rd place.
+      if (inner.classList.contains("brm")) {
+        const bodies = [...inner.querySelectorAll(".brm-col:not(.brm-col--leaf) .brm-body")];
+        for (let i = 0; i < bodies.length - 1; i++) link(bodies[i], bodies[i + 1], +1);
+        return;
+      }
 
       const L = [...inner.querySelectorAll(".br2-left .br2-round-body")];   // [r32, r16, qf, sf]
       const R = [...inner.querySelectorAll(".br2-right .br2-round-body")];  // [sf, qf, r16, r32]

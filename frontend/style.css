@@ -840,6 +840,7 @@ table.bd-table { width: 100%; border-collapse: collapse; }
 
 .chat-input {
   flex: 1;
+  min-width: 0;            /* let the input shrink so the Send button never overflows */
   background: var(--bg);
   border: 1px solid var(--border);
   color: var(--text);
@@ -1063,10 +1064,13 @@ table.bd-table { width: 100%; border-collapse: collapse; }
 
 /* Mobile: single left-to-right column flow (no mirroring, no connectors) that scrolls
    horizontally — each round is a fixed-width column of stacked cards. */
-.bracket-inner.brm { align-items: flex-start; gap: 14px; min-width: 0; }
-.brm-col { display: flex; flex-direction: column; gap: 10px; flex: 0 0 auto; width: 144px; }
+.bracket-inner.brm { align-items: stretch; gap: 14px; min-width: 0; }
+.brm-col { display: flex; flex-direction: column; flex: 0 0 auto; width: 144px; }
 .brm-col .br2-round-head { margin-bottom: 2px; }
-.brm-col .bracket-match { margin: 0; width: 100%; }
+/* each round fills the (R32-defined) height and spreads its cards, so round N+1 sits
+   centred on its feeder pair in round N — clean left-to-right connector geometry */
+.brm-body { flex: 1; display: flex; flex-direction: column; justify-content: space-around; }
+.brm-col .bracket-match { margin: 6px 0; width: 100%; }
 
 /* SVG overlay holding the connector lines (drawn from real card geometry) */
 .br2-lines { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 0; }
