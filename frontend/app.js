@@ -142,6 +142,49 @@ function getFlagUrl(teamName) {
   return code ? `https://flagcdn.com/w160/${code}.png` : null;
 }
 
+// FIFA-style 3-letter codes — shown where space is tight (e.g. the knockout bracket).
+const TEAM_CODES = {
+  "United States": "USA", "USA": "USA", "Canada": "CAN", "Mexico": "MEX", "Panama": "PAN",
+  "Honduras": "HON", "Costa Rica": "CRC", "El Salvador": "SLV", "Jamaica": "JAM",
+  "Trinidad and Tobago": "TRI", "Guatemala": "GUA", "Haiti": "HAI",
+  "Curaçao": "CUW", "Curacao": "CUW", "Cuba": "CUB",
+  "Brazil": "BRA", "Argentina": "ARG", "Uruguay": "URU", "Colombia": "COL", "Ecuador": "ECU",
+  "Chile": "CHI", "Paraguay": "PAR", "Bolivia": "BOL", "Venezuela": "VEN", "Peru": "PER",
+  "France": "FRA", "Germany": "GER", "Spain": "ESP", "Portugal": "POR", "England": "ENG",
+  "Netherlands": "NED", "Belgium": "BEL", "Italy": "ITA", "Switzerland": "SUI", "Croatia": "CRO",
+  "Denmark": "DEN", "Austria": "AUT", "Czech Republic": "CZE", "Czechia": "CZE", "Serbia": "SRB",
+  "Scotland": "SCO", "Turkey": "TUR", "Slovakia": "SVK", "Hungary": "HUN", "Poland": "POL",
+  "Slovenia": "SVN", "Albania": "ALB", "Romania": "ROU", "Georgia": "GEO", "Ukraine": "UKR",
+  "Wales": "WAL", "Greece": "GRE", "Sweden": "SWE", "Norway": "NOR", "Finland": "FIN",
+  "Iceland": "ISL", "Bosnia and Herzegovina": "BIH", "Bosnia-Herzegovina": "BIH", "Bosnia": "BIH",
+  "North Macedonia": "MKD", "Montenegro": "MNE", "Kosovo": "KOS", "Bulgaria": "BUL",
+  "Ireland": "IRL", "Northern Ireland": "NIR", "Latvia": "LVA", "Lithuania": "LTU",
+  "Estonia": "EST", "Armenia": "ARM", "Azerbaijan": "AZE", "Kazakhstan": "KAZ",
+  "Luxembourg": "LUX", "Cyprus": "CYP", "Faroe Islands": "FRO", "Russia": "RUS",
+  "Morocco": "MAR", "Senegal": "SEN", "Nigeria": "NGA", "Egypt": "EGY",
+  "Côte d'Ivoire": "CIV", "Ivory Coast": "CIV", "Cote d'Ivoire": "CIV", "Côte D'Ivoire": "CIV",
+  "Cameroon": "CMR", "Ghana": "GHA", "Tunisia": "TUN", "Algeria": "ALG", "South Africa": "RSA",
+  "Mali": "MLI", "DR Congo": "COD", "Congo DR": "COD", "Democratic Republic of Congo": "COD",
+  "Congo, DR": "COD", "Tanzania": "TAN", "Zimbabwe": "ZIM", "Zambia": "ZAM", "Kenya": "KEN",
+  "Uganda": "UGA", "Ethiopia": "ETH", "Angola": "ANG", "Libya": "LBY", "Sudan": "SDN",
+  "Mozambique": "MOZ", "Benin": "BEN", "Guinea": "GUI", "Cape Verde": "CPV",
+  "Cape Verde Islands": "CPV", "Gambia": "GAM",
+  "Japan": "JPN", "South Korea": "KOR", "Korea Republic": "KOR", "Korea DPR": "PRK",
+  "North Korea": "PRK", "Australia": "AUS", "Iran": "IRN", "Saudi Arabia": "KSA", "Iraq": "IRQ",
+  "Jordan": "JOR", "Qatar": "QAT", "Uzbekistan": "UZB", "Bahrain": "BHR", "China": "CHN",
+  "China PR": "CHN", "United Arab Emirates": "UAE", "Kuwait": "KUW", "Oman": "OMA",
+  "Palestine": "PLE", "Lebanon": "LBN", "Syria": "SYR", "Pakistan": "PAK", "Indonesia": "IDN",
+  "Thailand": "THA", "Vietnam": "VIE", "Philippines": "PHI", "Malaysia": "MAS", "India": "IND",
+  "Tajikistan": "TJK", "Kyrgyzstan": "KGZ", "Turkmenistan": "TKM",
+  "New Zealand": "NZL", "Fiji": "FIJ", "Papua New Guinea": "PNG", "Solomon Islands": "SOL",
+};
+
+// Short code for tight UIs; falls back to the first 3 letters for anything unmapped.
+function getTeamCode(teamName) {
+  if (!teamName || teamName === "TBD") return "TBD";
+  return TEAM_CODES[teamName] || teamName.slice(0, 3).toUpperCase();
+}
+
 function getAuth() {
   const params = new URLSearchParams(window.location.search);
   return { user: params.get("user"), sig: params.get("sig") };

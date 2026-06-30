@@ -177,10 +177,10 @@
 
         document.getElementById("bracket-inner").innerHTML = `
           <div class="br2-side br2-left">
-            ${col("Round of 32", r32L)}
-            ${col("Round of 16", r16L)}
-            ${col("Quarter-Finals", qfL)}
-            ${col("Semi-Finals", sfL)}
+            ${col("R32", r32L)}
+            ${col("R16", r16L)}
+            ${col("QF", qfL)}
+            ${col("SF", sfL)}
           </div>
           <div class="br2-center">
             <div class="br2-center-label">Final</div>
@@ -189,10 +189,10 @@
             ${thirdM ? `<div class="br2-third-label">3rd Place</div>${bracketMatchHtml(thirdM)}` : ""}
           </div>
           <div class="br2-side br2-right">
-            ${col("Semi-Finals", sfR)}
-            ${col("Quarter-Finals", qfR)}
-            ${col("Round of 16", r16R)}
-            ${col("Round of 32", r32R)}
+            ${col("SF", sfR)}
+            ${col("QF", qfR)}
+            ${col("R16", r16R)}
+            ${col("R32", r32R)}
           </div>`;
 
         requestAnimationFrame(drawConnectors);
@@ -271,7 +271,7 @@
             ? `<span class="bm-flag-ph">🏳</span>`
             : (() => { const u = getFlagUrl(name); return u ? `<img src="${u}" class="bm-flag" onerror="this.style.display='none'">` : `<span class="bm-flag-ph">🏳</span>`; })()
           }
-          <span class="bm-name">${isTbd(name) ? '<span class="tbd">TBD</span>' : escHtml(name)}</span>
+          <span class="bm-name" title="${isTbd(name) ? '' : escHtml(name)}">${isTbd(name) ? '<span class="tbd">TBD</span>' : escHtml(getTeamCode(name))}</span>
           ${m.result === side ? `<span class="bm-win-mark">✓</span>` : ""}
         </div>`;
 
