@@ -42,6 +42,8 @@ def upgrade() -> None:
         sa.Column("result", sa.String, nullable=True),
         sa.Column("score_a", sa.Integer, nullable=True),
         sa.Column("score_b", sa.Integer, nullable=True),
+        sa.Column("pens_a", sa.Integer, nullable=True),
+        sa.Column("pens_b", sa.Integer, nullable=True),
     )
     op.create_table(
         "votes",

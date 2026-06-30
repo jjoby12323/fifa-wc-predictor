@@ -153,6 +153,8 @@ main { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
 .rc-score { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 26px; text-align: right; color: var(--text); }
 .rc-row.lose .rc-name { font-weight: 500; color: var(--muted); }
 .rc-row.lose .rc-score { color: #586069; }
+.rc-pens { font-size: 0.9rem; font-weight: 700; color: var(--muted); }       /* shootout score, e.g. (4) */
+.rc-row.lose .rc-pens { color: #586069; }
 .rc-divln { height: 1px; background: var(--surface2); margin: 1px 0; }
 
 .rc-note { font-size: 0.82rem; color: var(--muted); margin-top: 9px; display: flex; align-items: center; gap: 7px; }

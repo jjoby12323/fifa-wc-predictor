@@ -206,22 +206,22 @@
       // ── Scoreboard: flag + name (+ score when settled); winner bright, loser dim ──
       const settled = m.status === "settled" && m.result;
       const hasScore = m.score_a != null && m.score_b != null;
-      const pens = settled && hasScore && m.result !== "draw" && m.score_a === m.score_b && m.stage !== "group";
+      const hasPens = m.pens_a != null && m.pens_b != null;   // shootout — show pens in brackets
       let aCls = "", bCls = "";
       if (settled && m.result !== "draw") {
         aCls = m.result === "team_a" ? "win" : "lose";
         bCls = m.result === "team_b" ? "win" : "lose";
       }
-      const scoreA = hasScore ? `<span class="rc-score">${m.score_a}</span>` : "";
-      const scoreB = hasScore ? `<span class="rc-score">${m.score_b}</span>` : "";
+      const cell = (goals, pens) => hasScore
+        ? `<span class="rc-score">${goals}${hasPens ? ` <span class="rc-pens">(${pens})</span>` : ""}</span>`
+        : "";
       const scoreboard = `
-        <div class="rc-row ${aCls}">${cardFlag(m.team_a)}<span class="rc-name">${escHtml(m.team_a)}</span>${scoreA}</div>
+        <div class="rc-row ${aCls}">${cardFlag(m.team_a)}<span class="rc-name">${escHtml(m.team_a)}</span>${cell(m.score_a, m.pens_a)}</div>
         <div class="rc-divln"></div>
-        <div class="rc-row ${bCls}">${cardFlag(m.team_b)}<span class="rc-name">${escHtml(m.team_b)}</span>${scoreB}</div>`;
+        <div class="rc-row ${bCls}">${cardFlag(m.team_b)}<span class="rc-name">${escHtml(m.team_b)}</span>${cell(m.score_b, m.pens_b)}</div>`;
 
       let noteHtml = "";
-      if (pens) noteHtml = `<div class="rc-note">Won on penalties</div>`;
-      else if (m.status === "closed") noteHtml = `<div class="rc-note"><span class="rc-live"></span> In progress — result pending</div>`;
+      if (m.status === "closed") noteHtml = `<div class="rc-note"><span class="rc-live"></span> In progress — result pending</div>`;
 
       // ── Action: vote buttons when open & unpicked, otherwise the "Your pick" chip ──
       let actionHtml = "";
@@ -315,10 +315,7 @@
       const winnerB = m.result === "team_b";
       const drawResult = m.result === "draw";
       const hasScore = m.score_a != null && m.score_b != null;
-      // Penalties only exist in knockouts. A level full-time score there with a decided
-      // winner means it went to a shootout (this tier gives no penalty tally). A level
-      // group game is just a draw, so never label the group stage as "penalties".
-      const wonOnPens = hasScore && !drawResult && m.score_a === m.score_b && m.stage !== "group";
+      const hasPens = m.pens_a != null && m.pens_b != null;   // decided on penalties
 
       // ── Voting action: pick / change / remove when open, read-only otherwise ──
       let actionHtml = "";
@@ -375,7 +372,7 @@
             <div class="mo-vs-col">
               ${m.result
                 ? `<div class="mo-result-crown">${drawResult ? "Draw" : (winnerA ? escHtml(m.team_a) : escHtml(m.team_b)) + " wins"}</div>
-                   ${hasScore ? `<div class="mo-score">${m.score_a} <span class="mo-score-dash">–</span> ${m.score_b}</div>${wonOnPens ? `<div class="mo-score-note">on penalties</div>` : ""}` : ""}`
+                   ${hasScore ? `<div class="mo-score">${m.score_a} <span class="mo-score-dash">–</span> ${m.score_b}</div>${hasPens ? `<div class="mo-score-note">Penalties ${m.pens_a}–${m.pens_b}</div>` : ""}` : ""}`
                 : `<div class="mo-vs">VS</div>`}
               <div class="mo-kickoff-time">🕐 ${kickoffStr}</div>
               ${m.stage !== "group" ? `<div class="mo-stage-note">${stageLabel}</div>` : ""}

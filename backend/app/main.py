@@ -25,6 +25,10 @@ async def _ensure_schema():
             conn.exec_driver_sql("ALTER TABLE matches ADD COLUMN score_a INTEGER")
         if mcols and "score_b" not in mcols:
             conn.exec_driver_sql("ALTER TABLE matches ADD COLUMN score_b INTEGER")
+        if mcols and "pens_a" not in mcols:
+            conn.exec_driver_sql("ALTER TABLE matches ADD COLUMN pens_a INTEGER")
+        if mcols and "pens_b" not in mcols:
+            conn.exec_driver_sql("ALTER TABLE matches ADD COLUMN pens_b INTEGER")
     async with engine.begin() as conn:
         await conn.run_sync(_apply)
 

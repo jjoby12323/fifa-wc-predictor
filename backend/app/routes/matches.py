@@ -80,6 +80,8 @@ async def get_matches(
             result=m.result,
             score_a=m.score_a,
             score_b=m.score_b,
+            pens_a=m.pens_a,
+            pens_b=m.pens_b,
             my_vote=my_vote,
             correct=correct,
         ))
@@ -140,6 +142,8 @@ async def get_match_detail(
         result=match.result,
         score_a=match.score_a,
         score_b=match.score_b,
+        pens_a=match.pens_a,
+        pens_b=match.pens_b,
         fifa_rank_a=match.fifa_rank_a,
         fifa_rank_b=match.fifa_rank_b,
         my_vote=my_vote,

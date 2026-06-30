@@ -72,6 +72,29 @@ def parse_fulltime_score(match_payload: dict) -> tuple[int | None, int | None]:
     return ft.get("home"), ft.get("away")
 
 
+def parse_penalty_score(match_payload: dict) -> tuple[int | None, int | None]:
+    """(home_pens, away_pens) for a shootout, else (None, None).
+
+    Prefer football-data's `penalties` when it's decisive; otherwise back it out of
+    `fullTime` minus the on-field (regular + extra time) score — this feed encodes
+    fullTime = on-field + shootout, and its `penalties` field is often a stub tie.
+    """
+    sc = match_payload.get("score") or {}
+    if sc.get("duration") != "PENALTY_SHOOTOUT":
+        return None, None
+    pen = sc.get("penalties") or {}
+    ph, pa = pen.get("home"), pen.get("away")
+    if ph is not None and pa is not None and ph != pa:
+        return ph, pa
+    ft = sc.get("fullTime") or {}
+    oh, oa = parse_fulltime_score(match_payload)
+    if ft.get("home") is not None and ft.get("away") is not None and oh is not None and oa is not None:
+        dh, da = ft["home"] - oh, ft["away"] - oa
+        if dh >= 0 and da >= 0 and dh != da:
+            return dh, da
+    return None, None
+
+
 def resolve_result(match_payload: dict) -> str | None:
     """Map a FINISHED football-data match to our result key, or None if undecided.
 
@@ -146,10 +169,11 @@ async def sync_fixtures(set_results: bool = True) -> int:
             match_label = f"{home} vs {away}"
 
             result = None
-            score_a = score_b = None
+            score_a = score_b = pens_a = pens_b = None
             if set_results and m.get("status") == "FINISHED":
                 result = resolve_result(m)
                 score_a, score_b = parse_fulltime_score(m)
+                pens_a, pens_b = parse_penalty_score(m)
 
             existing = await db.execute(select(Match).where(Match.external_id == m["id"]))
             existing_match = existing.scalar_one_or_none()
@@ -168,6 +192,9 @@ async def sync_fixtures(set_results: bool = True) -> int:
                 if score_a is not None and score_b is not None:
                     existing_match.score_a = score_a
                     existing_match.score_b = score_b
+                if pens_a is not None and pens_b is not None:
+                    existing_match.pens_a = pens_a
+                    existing_match.pens_b = pens_b
             else:
                 db.add(Match(
                     external_id=m["id"],
@@ -183,6 +210,8 @@ async def sync_fixtures(set_results: bool = True) -> int:
                     result=result,
                     score_a=score_a,
                     score_b=score_b,
+                    pens_a=pens_a,
+                    pens_b=pens_b,
                 ))
         await db.commit()
 

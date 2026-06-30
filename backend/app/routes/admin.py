@@ -12,7 +12,7 @@ from app.db import get_db
 from app.models import Match, Vote, Score, User, Message, SettleRequest, AnnounceRequest
 from app.scoring import compute_all_scores, MatchData, VoteData
 from app.slack import post_to_slack, slack_enabled
-from app.fixtures import FD_BASE, parse_fulltime_score, resolve_result
+from app.fixtures import FD_BASE, parse_fulltime_score, parse_penalty_score, resolve_result
 from app.sync import _recompute_scores
 
 IST_OFFSET = timedelta(hours=5, minutes=30)
@@ -183,7 +183,8 @@ async def resync_results(
                 r = resolve_result(am)
                 if r:
                     sa, sb = parse_fulltime_score(am)
-                    by_ext[am["id"]] = (r, sa, sb)
+                    pa, pb = parse_penalty_score(am)
+                    by_ext[am["id"]] = (r, sa, sb, pa, pb)
 
     ours = (await db.execute(select(Match).where(Match.external_id.isnot(None)))).scalars().all()
     changed = []
@@ -191,10 +192,10 @@ async def resync_results(
         info = by_ext.get(m.external_id)
         if not info:
             continue
-        r, sa, sb = info
-        if (m.result, m.score_a, m.score_b) != (r, sa, sb):
+        r, sa, sb, pa, pb = info
+        if (m.result, m.score_a, m.score_b, m.pens_a, m.pens_b) != (r, sa, sb, pa, pb):
             changed.append(f"{m.match_label}: {m.result}→{r} ({sa}-{sb})")
-            m.result, m.score_a, m.score_b = r, sa, sb
+            m.result, m.score_a, m.score_b, m.pens_a, m.pens_b = r, sa, sb, pa, pb
     if changed:
         await db.flush()
         await _recompute_scores(db)
