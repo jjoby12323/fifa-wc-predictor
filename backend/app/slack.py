@@ -67,22 +67,25 @@ def build_reminder_text(date_label: str, names: list[str], hours_before: int) ->
 
 def build_result_text(team_a: str, team_b: str, result: str,
                       score_a: int | None = None, score_b: int | None = None,
-                      stage: str = "group") -> str:
+                      stage: str = "group",
+                      pens_a: int | None = None, pens_b: int | None = None) -> str:
     have_score = score_a is not None and score_b is not None
     if result == "draw":
         if have_score:
             return f":soccer: Full time: *{team_a}* {score_a}–{score_b} *{team_b}*. :handshake:"
         return f":soccer: Full time: *{team_a}* and *{team_b}* played out a draw. :handshake:"
     if result == "team_a":
-        winner, loser, win_goals, lose_goals = team_a, team_b, score_a, score_b
+        winner, loser, win_goals, lose_goals, win_pens, lose_pens = team_a, team_b, score_a, score_b, pens_a, pens_b
     else:
-        winner, loser, win_goals, lose_goals = team_b, team_a, score_b, score_a
+        winner, loser, win_goals, lose_goals, win_pens, lose_pens = team_b, team_a, score_b, score_a, pens_b, pens_a
     if not have_score:
         return f":soccer: Full time: *{winner}* beat {loser}."
-    # A level full-time score with a winner only happens in a knockout shootout —
-    # the group stage can't go to penalties (a level group game is a draw).
+    if win_pens is not None and lose_pens is not None:
+        # decided on penalties — lead with the shootout score, level score in brackets
+        return f":soccer: Full time: *{winner}* beat {loser} on penalties *{win_pens}–{lose_pens}* ({win_goals}–{lose_goals}). :goal_net:"
+    # fallback: a level knockout score we couldn't tally — still flag the shootout
     if win_goals == lose_goals and stage != "group":
-        return f":soccer: Full time: *{winner}* beat {loser} on penalties ({win_goals}–{lose_goals})."
+        return f":soccer: Full time: *{winner}* beat {loser} on penalties ({win_goals}–{lose_goals}). :goal_net:"
     return f":soccer: Full time: *{winner}* beat {loser} *{win_goals}–{lose_goals}*."
 
 

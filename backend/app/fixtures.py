@@ -114,7 +114,12 @@ def resolve_result(match_payload: dict) -> str | None:
                 return "team_a" if h > a else "team_b"
         return None  # shootout not fully recorded yet — wait for the next poll
     if winner == "DRAW":
-        return "draw"
+        # Only the group stage can end in a draw. A knockout coming back "DRAW" is level
+        # after extra time with the shootout not yet recorded — return None and keep polling
+        # until there's a winner (a knockout never settles as a draw).
+        if (match_payload.get("stage") or "").upper() == "GROUP_STAGE":
+            return "draw"
+        return None
     return None
 
 
