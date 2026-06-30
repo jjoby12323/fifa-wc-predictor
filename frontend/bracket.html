@@ -143,65 +143,79 @@
     }
 
     // ── Knockout bracket (two-sided, converging to the centre) ─────
+    let bracketMatches = null;
+
     async function loadBracket() {
       try {
         const matches = await apiFetch("/api/bracket");
         document.getElementById("bracket-loading").classList.add("hidden");
         const errEl = document.getElementById("bracket-error");
-
         if (!matches.length) {
           errEl.className = "empty-note";
           errEl.textContent = "The knockout bracket appears here once the fixtures are scheduled.";
           return;
         }
         errEl.className = "error-banner hidden";
-
-        const byStage = {};
-        for (const m of matches) (byStage[m.stage] = byStage[m.stage] || []).push(m);
-        for (const s in byStage) byStage[s].sort((a, b) => (a.kickoff_utc < b.kickoff_utc ? -1 : 1));
-
-        // Split each round in half — left side feeds inward, right side mirrors.
-        const half = (a = []) => { const n = Math.ceil(a.length / 2); return [a.slice(0, n), a.slice(n)]; };
-        const [r32L, r32R] = half(byStage.r32);
-        const [r16L, r16R] = half(byStage.r16);
-        const [qfL,  qfR]  = half(byStage.qf);
-        const [sfL,  sfR]  = half(byStage.sf);
-        const finalM = (byStage.final || [])[0];
-        const thirdM = (byStage.third || [])[0];
-
-        const col = (label, ms) => `
-          <div class="br2-round">
-            <div class="br2-round-head">${label}</div>
-            <div class="br2-round-body">${(ms || []).map(bracketMatchHtml).join("")}</div>
-          </div>`;
-
-        document.getElementById("bracket-inner").innerHTML = `
-          <div class="br2-side br2-left">
-            ${col("R32", r32L)}
-            ${col("R16", r16L)}
-            ${col("QF", qfL)}
-            ${col("SF", sfL)}
-          </div>
-          <div class="br2-center">
-            <div class="br2-center-label">Final</div>
-            ${finalM ? bracketMatchHtml(finalM) : ""}
-            <div class="br2-trophy"><span class="br2-trophy-icon">🏆</span><span class="br2-trophy-cap">Champion</span></div>
-            ${thirdM ? `<div class="br2-third-label">3rd Place</div>${bracketMatchHtml(thirdM)}` : ""}
-          </div>
-          <div class="br2-side br2-right">
-            ${col("SF", sfR)}
-            ${col("QF", qfR)}
-            ${col("R16", r16R)}
-            ${col("R32", r32R)}
-          </div>`;
-
-        requestAnimationFrame(drawConnectors);
+        bracketMatches = matches;
+        renderBracket();
       } catch (err) {
         document.getElementById("bracket-loading").classList.add("hidden");
         const errEl = document.getElementById("bracket-error");
         errEl.className = "error-banner";
         errEl.textContent = err.message;
       }
+    }
+
+    // Desktop: mirrored two-sided bracket with SVG connectors.
+    // Mobile: a single left-to-right column flow that scrolls horizontally — no mirroring,
+    // no connectors, nothing to collapse (the two-sided layout is unusable on a phone).
+    function renderBracket() {
+      if (!bracketMatches) return;
+      const byStage = {};
+      for (const m of bracketMatches) (byStage[m.stage] = byStage[m.stage] || []).push(m);
+      for (const s in byStage) byStage[s].sort((a, b) => (a.kickoff_utc < b.kickoff_utc ? -1 : 1));
+      const inner = document.getElementById("bracket-inner");
+      inner.querySelectorAll("svg.br2-lines").forEach(s => s.remove());
+
+      if (window.matchMedia("(max-width: 600px)").matches) {
+        const mcol = (label, ms) => (ms && ms.length)
+          ? `<div class="brm-col"><div class="br2-round-head">${label}</div>${ms.map(bracketMatchHtml).join("")}</div>`
+          : "";
+        inner.className = "bracket-inner brm";
+        inner.innerHTML =
+          mcol("R32", byStage.r32) + mcol("R16", byStage.r16) + mcol("QF", byStage.qf) +
+          mcol("SF", byStage.sf) + mcol("Final", byStage.final) + mcol("3rd Place", byStage.third);
+        return;  // linear flow — no connectors needed
+      }
+
+      // Split each round in half — left side feeds inward, right side mirrors.
+      const half = (a = []) => { const n = Math.ceil(a.length / 2); return [a.slice(0, n), a.slice(n)]; };
+      const [r32L, r32R] = half(byStage.r32);
+      const [r16L, r16R] = half(byStage.r16);
+      const [qfL,  qfR]  = half(byStage.qf);
+      const [sfL,  sfR]  = half(byStage.sf);
+      const finalM = (byStage.final || [])[0];
+      const thirdM = (byStage.third || [])[0];
+      const col = (label, ms) => `
+        <div class="br2-round">
+          <div class="br2-round-head">${label}</div>
+          <div class="br2-round-body">${(ms || []).map(bracketMatchHtml).join("")}</div>
+        </div>`;
+      inner.className = "bracket-inner";
+      inner.innerHTML = `
+        <div class="br2-side br2-left">
+          ${col("R32", r32L)}${col("R16", r16L)}${col("QF", qfL)}${col("SF", sfL)}
+        </div>
+        <div class="br2-center">
+          <div class="br2-center-label">Final</div>
+          ${finalM ? bracketMatchHtml(finalM) : ""}
+          <div class="br2-trophy"><span class="br2-trophy-icon">🏆</span><span class="br2-trophy-cap">Champion</span></div>
+          ${thirdM ? `<div class="br2-third-label">3rd Place</div>${bracketMatchHtml(thirdM)}` : ""}
+        </div>
+        <div class="br2-side br2-right">
+          ${col("SF", sfR)}${col("QF", qfR)}${col("R16", r16R)}${col("R32", r32R)}
+        </div>`;
+      requestAnimationFrame(drawConnectors);
     }
 
     // Connector lines drawn as an SVG overlay from the real card positions,
@@ -287,7 +301,12 @@
     // ── Init ──────────────────────────────────────────────────────
     loadStandings();
     setInterval(loadStandings, 120_000); // refresh every 2 min
-    window.addEventListener("resize", () => { if (bracketLoaded) requestAnimationFrame(drawConnectors); });
+    let _bracketResizeTimer;
+    window.addEventListener("resize", () => {
+      if (!bracketMatches) return;
+      clearTimeout(_bracketResizeTimer);
+      _bracketResizeTimer = setTimeout(renderBracket, 150);  // re-render swaps mobile/desktop layout
+    });
   </script>
 </body>
 </html>

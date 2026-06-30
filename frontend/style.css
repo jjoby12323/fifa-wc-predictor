@@ -1061,6 +1061,13 @@ table.bd-table { width: 100%; border-collapse: collapse; }
   padding: 8px 12px 24px;
 }
 
+/* Mobile: single left-to-right column flow (no mirroring, no connectors) that scrolls
+   horizontally — each round is a fixed-width column of stacked cards. */
+.bracket-inner.brm { align-items: flex-start; gap: 14px; min-width: 0; }
+.brm-col { display: flex; flex-direction: column; gap: 10px; flex: 0 0 auto; width: 144px; }
+.brm-col .br2-round-head { margin-bottom: 2px; }
+.brm-col .bracket-match { margin: 0; width: 100%; }
+
 /* SVG overlay holding the connector lines (drawn from real card geometry) */
 .br2-lines { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 0; }
 .br2-lines line { stroke: var(--border); stroke-width: 2; }
