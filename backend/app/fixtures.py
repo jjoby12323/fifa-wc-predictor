@@ -52,14 +52,47 @@ def _ist_date(kickoff_utc: datetime):
     return (kickoff_utc + IST_OFFSET).date()
 
 
-def parse_fulltime_score(match_payload: dict) -> tuple[int | None, int | None]:
-    """(home_goals, away_goals) from a football-data match payload, or (None, None).
+_WINNER_MAP = {"HOME_TEAM": "team_a", "AWAY_TEAM": "team_b"}
 
-    Uses score.fullTime — the score that stands at the end of play (incl. extra time).
-    A knockout decided on penalties shows level here; the winner field still resolves it.
+
+def parse_fulltime_score(match_payload: dict) -> tuple[int | None, int | None]:
+    """(home_goals, away_goals) to DISPLAY, or (None, None).
+
+    For a match that went to extra time or a shootout, this is the on-field score
+    (regular + extra time) — the level score that sent it to penalties — NOT football-data's
+    `fullTime`, which folds the shootout in. For a normal match it's `fullTime`. Keeping the
+    score level for a shootout is what makes the UI/Slack read it as "won on penalties".
     """
-    ft = (match_payload.get("score") or {}).get("fullTime") or {}
+    sc = match_payload.get("score") or {}
+    reg = sc.get("regularTime") or {}
+    if reg.get("home") is not None and reg.get("away") is not None:
+        ext = sc.get("extraTime") or {}
+        return reg["home"] + (ext.get("home") or 0), reg["away"] + (ext.get("away") or 0)
+    ft = sc.get("fullTime") or {}
     return ft.get("home"), ft.get("away")
+
+
+def resolve_result(match_payload: dict) -> str | None:
+    """Map a FINISHED football-data match to our result key, or None if undecided.
+
+    football-data leaves `score.winner` null for penalty shootouts (the outcome lives in
+    `penalties`/`fullTime`), so derive the winner from those when the field isn't decisive.
+    """
+    sc = match_payload.get("score") or {}
+    winner = sc.get("winner")
+    if winner in _WINNER_MAP:
+        return _WINNER_MAP[winner]
+    if sc.get("duration") == "PENALTY_SHOOTOUT":
+        # winner is null/DRAW on a shootout — read it off the shootout (or aggregate) score.
+        for seg in (sc.get("penalties"), sc.get("fullTime")):
+            seg = seg or {}
+            h, a = seg.get("home"), seg.get("away")
+            if h is not None and a is not None and h != a:
+                return "team_a" if h > a else "team_b"
+        return None  # shootout not fully recorded yet — wait for the next poll
+    if winner == "DRAW":
+        return "draw"
+    return None
 
 
 async def sync_fixtures(set_results: bool = True) -> int:
@@ -115,11 +148,7 @@ async def sync_fixtures(set_results: bool = True) -> int:
             result = None
             score_a = score_b = None
             if set_results and m.get("status") == "FINISHED":
-                winner = (m.get("score") or {}).get("winner")
-                if winner == "HOME_TEAM":
-                    result = "team_a"
-                elif winner == "AWAY_TEAM":
-                    result = "team_b"
+                result = resolve_result(m)
                 score_a, score_b = parse_fulltime_score(m)
 
             existing = await db.execute(select(Match).where(Match.external_id == m["id"]))

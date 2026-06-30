@@ -12,7 +12,8 @@ from app.db import get_db
 from app.models import Match, Vote, Score, User, Message, SettleRequest, AnnounceRequest
 from app.scoring import compute_all_scores, MatchData, VoteData
 from app.slack import post_to_slack, slack_enabled
-from app.fixtures import FD_BASE, parse_fulltime_score
+from app.fixtures import FD_BASE, parse_fulltime_score, resolve_result
+from app.sync import _recompute_scores
 
 IST_OFFSET = timedelta(hours=5, minutes=30)
 
@@ -154,6 +155,51 @@ async def backfill_scores(
             updated.append(f"{m.match_label} {sc[0]}-{sc[1]}")
     await db.commit()
     return {"status": "ok", "settled": len(ours), "filled": len(updated), "matches": updated}
+
+
+@router.post("/admin/resync-results")
+async def resync_results(
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_admin),
+):
+    """Re-derive result + score from football-data for every FINISHED match and correct any
+    that differ, then recompute all scores. Heals a shootout that football-data first reported
+    as a draw, or one left unsettled because `winner` was null. Safe to run repeatedly.
+    """
+    api_key = os.getenv("FOOTBALLDATA_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=400, detail="FOOTBALLDATA_API_KEY not set.")
+
+    # The feed can report a shootout as "level" (no decisive penalties/fullTime) on some
+    # polls, so re-fetch a few times and keep the first decisive snapshot per match.
+    by_ext: dict[int, tuple] = {}
+    async with httpx.AsyncClient(headers={"X-Auth-Token": api_key}, timeout=20) as client:
+        for _attempt in range(3):
+            resp = await client.get(f"{FD_BASE}/competitions/WC/matches")
+            resp.raise_for_status()
+            for am in resp.json().get("matches", []):
+                if am["id"] in by_ext or am.get("status") != "FINISHED":
+                    continue
+                r = resolve_result(am)
+                if r:
+                    sa, sb = parse_fulltime_score(am)
+                    by_ext[am["id"]] = (r, sa, sb)
+
+    ours = (await db.execute(select(Match).where(Match.external_id.isnot(None)))).scalars().all()
+    changed = []
+    for m in ours:
+        info = by_ext.get(m.external_id)
+        if not info:
+            continue
+        r, sa, sb = info
+        if (m.result, m.score_a, m.score_b) != (r, sa, sb):
+            changed.append(f"{m.match_label}: {m.result}→{r} ({sa}-{sb})")
+            m.result, m.score_a, m.score_b = r, sa, sb
+    if changed:
+        await db.flush()
+        await _recompute_scores(db)
+    await db.commit()
+    return {"status": "ok", "corrected": len(changed), "matches": changed}
 
 
 @router.post("/admin/slack-test")

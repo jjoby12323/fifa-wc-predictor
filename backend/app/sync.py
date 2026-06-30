@@ -18,7 +18,7 @@ from app.models import Match, Vote, Score, User
 from app.scoring import compute_all_scores, MatchData, VoteData
 from app import slack, notifications
 from app.notifications import announce_match_result
-from app.fixtures import sync_fixtures, parse_fulltime_score
+from app.fixtures import sync_fixtures, parse_fulltime_score, resolve_result
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +26,6 @@ FOOTBALLDATA_API_KEY = os.getenv("FOOTBALLDATA_API_KEY", "")
 FD_BASE = "https://api.football-data.org/v4"
 
 _scheduler = BackgroundScheduler()
-
-# Maps football-data.org fullTime winner values to our internal result keys
-_WINNER_MAP = {
-    "HOME_TEAM": "team_a",
-    "AWAY_TEAM": "team_b",
-}
 
 
 def _sync_results_job():
@@ -72,13 +66,9 @@ async def _async_sync_results():
                 if status != "FINISHED":
                     continue
 
-                winner_raw = (data.get("score") or {}).get("winner")
-                if winner_raw == "DRAW":
-                    result = "draw"   # nobody scores; handled in scoring.py
-                else:
-                    result = _WINNER_MAP.get(winner_raw)
+                result = resolve_result(data)
                 if result is None:
-                    continue
+                    continue  # undecided (e.g. a shootout football-data hasn't fully recorded)
 
                 match.result = result
                 match.score_a, match.score_b = parse_fulltime_score(data)
