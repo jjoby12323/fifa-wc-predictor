@@ -249,11 +249,19 @@
         line(mid, b.cy, bx, b.cy);
       };
       const cardsIn = body => [...body.querySelectorAll(".bracket-match")];
+      const nameOf = el => (el.getAttribute("title") || el.textContent || "").trim();
+      const winnerOf = card => { const w = card.querySelector(".bm-team.winner .bm-name"); return w ? nameOf(w) : ""; };
+      const teamsOf = card => [...card.querySelectorAll(".bm-team .bm-name")].map(nameOf).filter(n => n && n !== "TBD");
+      // Connect by who actually advanced: draw from the previous-round card whose winner is
+      // one of this card's teams. Feeds aren't kickoff-adjacent, so index pairing is wrong.
       const link = (fromBody, toBody, dir) => {
-        const from = cardsIn(fromBody), to = cardsIn(toBody);
-        for (let k = 0; k < to.length; k++) {
-          if (from[2 * k]) elbow(from[2 * k], to[k], dir);
-          if (from[2 * k + 1]) elbow(from[2 * k + 1], to[k], dir);
+        const byWinner = new Map();
+        for (const c of cardsIn(fromBody)) { const w = winnerOf(c); if (w) byWinner.set(w, c); }
+        for (const toCard of cardsIn(toBody)) {
+          for (const team of teamsOf(toCard)) {
+            const src = byWinner.get(team);
+            if (src) elbow(src, toCard, dir);
+          }
         }
       };
 
@@ -270,10 +278,11 @@
       for (let i = R.length - 1; i > 0; i--) link(R[i], R[i - 1], -1);
 
       const finalCard = inner.querySelector(".br2-center .bracket-match");
+      const finalTeams = finalCard ? teamsOf(finalCard) : [];
       const sfLcard = cardsIn(L[L.length - 1])[0];
       const sfRcard = cardsIn(R[0])[0];
-      if (finalCard && sfLcard) elbow(sfLcard, finalCard, +1);
-      if (finalCard && sfRcard) elbow(sfRcard, finalCard, -1);
+      if (finalCard && sfLcard && finalTeams.includes(winnerOf(sfLcard))) elbow(sfLcard, finalCard, +1);
+      if (finalCard && sfRcard && finalTeams.includes(winnerOf(sfRcard))) elbow(sfRcard, finalCard, -1);
     }
 
     function bracketMatchHtml(m) {
