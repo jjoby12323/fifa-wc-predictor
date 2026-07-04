@@ -20,16 +20,12 @@ A team prediction game for the 2026 FIFA World Cup. Each person gets a signed pe
 
 ## Scoring
 
-Base points scale by stage (48-team format includes a Round of 32):
+Group games are worth 1 point; every knockout round (Round of 32 onward) is a flat 2:
 
 | Category | Points |
 |----------|--------|
 | Correct prediction (Group) | 1 |
-| Correct prediction (Round of 32) | 2 |
-| Correct prediction (Round of 16) | 3 |
-| Correct prediction (Quarter-Final) | 4 |
-| Correct prediction (Semi-Final) | 5 |
-| Correct prediction (Final) | 6 |
+| Correct prediction (any knockout round: R32, R16, QF, SF, Final, 3rd) | 2 |
 | Streak bonus (3 in a row — draws are skipped, not broken) | +1 |
 | Perfect matchday (all decisive matches called, 2+ matches) | +2 |
 | Participation (every 3 matches voted on) | +1 |

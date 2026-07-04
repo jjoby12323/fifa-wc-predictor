@@ -3,13 +3,15 @@ All scoring logic. Pure functions — no DB access. Called from routes/admin.py.
 """
 from typing import NamedTuple
 
+# Group games are worth 1; every knockout round is a flat 2 (no escalation).
 STAGE_MULTIPLIER = {
     "group": 1,
-    "r32": 2,   # WC2026 Round of 32 (new in 48-team format)
-    "r16": 3,
-    "qf": 4,
-    "sf": 5,
-    "final": 6,
+    "r32": 2,
+    "r16": 2,
+    "qf": 2,
+    "sf": 2,
+    "final": 2,
+    "third": 2,
 }
 
 
