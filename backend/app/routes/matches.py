@@ -26,9 +26,13 @@ def _match_status(match: Match, now: datetime) -> str:
         return "settled"
     if now >= match.kickoff_utc:
         return "closed"
-    if now >= match.polls_open_utc:
-        return "open"
-    return "pending"
+    # Group matches use the fixed 48h polls-open window. Knockout rounds instead unlock the
+    # moment their teams are known (i.e. the previous round has concluded), so a whole round
+    # becomes votable together — well ahead of kickoff.
+    if match.stage == "group":
+        return "open" if now >= match.polls_open_utc else "pending"
+    teams_known = match.team_a != "TBD" and match.team_b != "TBD"
+    return "open" if teams_known else "pending"
 
 
 @router.get("/api/matches", response_model=list[MatchStatus])

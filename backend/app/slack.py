@@ -56,6 +56,17 @@ def build_polls_open_text(date_label: str, fixtures: list[tuple[str, str]]) -> s
     return "\n".join(lines)
 
 
+def build_round_open_text(round_label: str, fixtures: list[tuple[str, str]], first_date_label: str) -> str:
+    n = len(fixtures)
+    lines = [
+        f":trophy: *{round_label} voting is open!*",
+        f"The whole round is up — all {n} match{'es' if n != 1 else ''}, first one {first_date_label}:",
+    ]
+    lines += [f"   • {a} vs {b}" for a, b in fixtures]
+    lines += ["", "Get your picks in before each kicks off. :soccer:"]
+    return "\n".join(lines)
+
+
 def build_reminder_text(date_label: str, names: list[str], hours_before: int) -> str:
     people = ", ".join(names)
     return (

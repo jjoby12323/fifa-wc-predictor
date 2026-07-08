@@ -95,13 +95,12 @@ async def get_bracket(db: AsyncSession = Depends(get_db)):
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     def _status(m: Match) -> str:
+        # All bracket matches are knockouts: votable (open) as soon as the teams are known.
         if m.result is not None:
             return "settled"
         if now >= m.kickoff_utc:
             return "closed"
-        if now >= m.polls_open_utc:
-            return "open"
-        return "pending"
+        return "open" if (m.team_a != "TBD" and m.team_b != "TBD") else "pending"
 
     return [
         {

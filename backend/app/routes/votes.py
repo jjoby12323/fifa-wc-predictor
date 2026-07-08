@@ -31,8 +31,13 @@ async def submit_vote(
         raise HTTPException(status_code=404, detail="Match not found.")
 
     now = datetime.now(timezone.utc).replace(tzinfo=None)
-    if now < match.polls_open_utc:
-        raise HTTPException(status_code=400, detail="Voting hasn't opened for this match yet.")
+    # Group: fixed 48h window. Knockout: open as soon as the teams are known (whole round unlocks
+    # together once the previous round has concluded).
+    if match.stage == "group":
+        if now < match.polls_open_utc:
+            raise HTTPException(status_code=400, detail="Voting hasn't opened for this match yet.")
+    elif match.team_a == "TBD" or match.team_b == "TBD":
+        raise HTTPException(status_code=400, detail="This match's teams aren't decided yet.")
     if now >= match.kickoff_utc:
         raise HTTPException(status_code=400, detail="This match has already kicked off — voting is closed.")
 

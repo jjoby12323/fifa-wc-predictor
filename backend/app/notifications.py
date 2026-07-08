@@ -89,6 +89,10 @@ async def announce_polls_open(db) -> None:
     now = _now()
     matches = (await db.execute(select(Match))).scalars().all()
     for md, ms in _matches_by_matchday(matches).items():
+        # Group-stage days only — knockout rounds get their own per-round announcement
+        # (they open on teams-known, not a fixed 48h window).
+        if not all(m.stage == "group" for m in ms):
+            continue
         polls_open = min(m.polls_open_utc for m in ms)
         first_kick = min(m.kickoff_utc for m in ms)
         if not (polls_open <= now < polls_open + ANNOUNCE_WINDOW and now < first_kick):
@@ -100,6 +104,44 @@ async def announce_polls_open(db) -> None:
         text = slack.build_polls_open_text(
             _ist_date_label(first_kick),
             [(m.team_a, m.team_b) for m in ordered],
+        )
+        if await slack.post_to_slack(text):
+            await _mark_sent(db, key)
+
+
+# ── Knockout round opens (whole round unlocks when its teams are known) ─────────
+
+# Voting groups for knockout rounds — the Final and 3rd-place open together.
+KNOCKOUT_ROUNDS = [
+    (["qf"], "Quarter-Finals"),
+    (["sf"], "Semi-Finals"),
+    (["final", "third"], "Final & 3rd place"),
+]
+
+
+async def announce_round_open(db) -> None:
+    """Post once when a knockout round's teams are all known and it hasn't kicked off —
+    i.e. the whole round has just become votable."""
+    now = _now()
+    matches = (await db.execute(select(Match))).scalars().all()
+    by_stage: dict[str, list[Match]] = {}
+    for m in matches:
+        by_stage.setdefault(m.stage, []).append(m)
+
+    for stages, label in KNOCKOUT_ROUNDS:
+        rms = [m for s in stages for m in by_stage.get(s, [])]
+        if not rms:
+            continue
+        all_known = all(m.team_a != "TBD" and m.team_b != "TBD" for m in rms)
+        first_kick = min(m.kickoff_utc for m in rms)
+        if not (all_known and now < first_kick):
+            continue
+        key = f"round_open:{'+'.join(stages)}"
+        if await _already_sent(db, key):
+            continue
+        ordered = sorted(rms, key=lambda m: m.kickoff_utc)
+        text = slack.build_round_open_text(
+            label, [(m.team_a, m.team_b) for m in ordered], _ist_date_label(first_kick),
         )
         if await slack.post_to_slack(text):
             await _mark_sent(db, key)
@@ -195,6 +237,8 @@ async def _notifications_tick() -> None:
             # Commit after each step so a later failure can't roll back a mark
             # for a message that was already posted.
             await announce_polls_open(db)
+            await db.commit()
+            await announce_round_open(db)
             await db.commit()
             await send_vote_reminders(db)
             await db.commit()
