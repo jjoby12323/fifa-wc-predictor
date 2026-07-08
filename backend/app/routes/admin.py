@@ -14,6 +14,7 @@ from app.scoring import compute_all_scores, MatchData, VoteData
 from app.slack import post_to_slack, slack_enabled
 from app.fixtures import FD_BASE, parse_fulltime_score, parse_penalty_score, resolve_result
 from app.sync import _recompute_scores
+from app.routes.matches import _match_status
 
 IST_OFFSET = timedelta(hours=5, minutes=30)
 
@@ -298,12 +299,15 @@ async def participation(
         day = matches_by_matchday[md]
         first_kickoff = min(m.kickoff_utc for m in day)
         polls_open = min(m.polls_open_utc for m in day)
-        if now < polls_open:
-            status = "upcoming"
-        elif now < first_kickoff:
+        # Day status from the real per-match voting rule (knockouts open on teams-known, not
+        # the 48h window) — so open knockout rounds show as open here too.
+        statuses = [_match_status(m, now) for m in day]
+        if any(s == "open" for s in statuses):
             status = "open"
-        else:
+        elif all(s in ("closed", "settled") for s in statuses):
             status = "closed"
+        else:
+            status = "upcoming"
         voted_ids = voters_per_matchday.get(md, set())
         matchdays.append({
             "matchday": md,
