@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_db
 from app.auth import require_user
 from app.models import Match, Vote, User, VoteRequest
+from app import grace
 
 router = APIRouter()
 
@@ -31,6 +32,9 @@ async def submit_vote(
         raise HTTPException(status_code=404, detail="Match not found.")
 
     now = datetime.now(timezone.utc).replace(tzinfo=None)
+    # A settled match is always locked — no voting once the result is known.
+    if match.result is not None:
+        raise HTTPException(status_code=400, detail="This match is already settled — voting is closed.")
     # Group: fixed 48h window. Knockout: open as soon as the teams are known (whole round unlocks
     # together once the previous round has concluded).
     if match.stage == "group":
@@ -38,7 +42,8 @@ async def submit_vote(
             raise HTTPException(status_code=400, detail="Voting hasn't opened for this match yet.")
     elif match.team_a == "TBD" or match.team_b == "TBD":
         raise HTTPException(status_code=400, detail="This match's teams aren't decided yet.")
-    if now >= match.kickoff_utc:
+    # Kickoff closes voting — unless an admin has opened the temporary late-voting window.
+    if now >= match.kickoff_utc and not grace.is_active():
         raise HTTPException(status_code=400, detail="This match has already kicked off — voting is closed.")
 
     existing_result = await db.execute(
@@ -93,7 +98,9 @@ async def revoke_vote(
         raise HTTPException(status_code=404, detail="Match not found.")
 
     now = datetime.now(timezone.utc).replace(tzinfo=None)
-    if now >= match.kickoff_utc:
+    if match.result is not None:
+        raise HTTPException(status_code=400, detail="This match is already settled — your pick is locked.")
+    if now >= match.kickoff_utc and not grace.is_active():
         raise HTTPException(status_code=400, detail="This match has already kicked off — your pick is locked.")
 
     existing_result = await db.execute(

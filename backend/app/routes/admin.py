@@ -9,12 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import httpx
 
 from app.db import get_db
-from app.models import Match, Vote, Score, User, Message, SettleRequest, AnnounceRequest
+from app.models import Match, Vote, Score, User, Message, SettleRequest, AnnounceRequest, GraceRequest
 from app.scoring import compute_all_scores, MatchData, VoteData
 from app.slack import post_to_slack, slack_enabled
 from app.fixtures import FD_BASE, parse_fulltime_score, parse_penalty_score, resolve_result
 from app.sync import _recompute_scores
 from app.routes.matches import _match_status
+from app import grace
 
 IST_OFFSET = timedelta(hours=5, minutes=30)
 
@@ -248,6 +249,17 @@ async def list_matches(
     ]
 
 
+@router.post("/admin/grace")
+async def set_grace(body: GraceRequest, _=Depends(require_admin)):
+    """Toggle the temporary late-voting window. When on, people can vote on matches that have
+    kicked off but aren't settled yet (never on settled matches). Auto-expires."""
+    if body.enabled:
+        grace.enable(body.minutes or grace.DEFAULT_MINUTES)
+    else:
+        grace.disable()
+    return grace.status()
+
+
 @router.get("/admin/participation")
 async def participation(
     db: AsyncSession = Depends(get_db),
@@ -301,7 +313,7 @@ async def participation(
         polls_open = min(m.polls_open_utc for m in day)
         # Day status from the real per-match voting rule (knockouts open on teams-known, not
         # the 48h window) — so open knockout rounds show as open here too.
-        statuses = [_match_status(m, now) for m in day]
+        statuses = [_match_status(m, now, grace.is_active()) for m in day]
         if any(s == "open" for s in statuses):
             status = "open"
         elif all(s in ("closed", "settled") for s in statuses):
@@ -323,6 +335,7 @@ async def participation(
 
     return {
         "generated_at": now.isoformat() + "Z",
+        "grace": grace.status(),
         "players": players,
         "matchdays": matchdays,
     }

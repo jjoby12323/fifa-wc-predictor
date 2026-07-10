@@ -203,3 +203,8 @@ class SettleRequest(BaseModel):
 
 class AnnounceRequest(BaseModel):
     text: str
+
+
+class GraceRequest(BaseModel):
+    enabled: bool
+    minutes: Optional[int] = None  # how long the late-voting window stays open (default in grace.py)

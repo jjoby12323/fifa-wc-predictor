@@ -70,6 +70,15 @@
         </div>
       </div>
 
+      <div class="announce-box">
+        <div class="announce-title">🕒 Late voting</div>
+        <p class="muted" style="margin:0 0 10px">Temporarily let people vote on matches that have <b>kicked off but aren't settled yet</b> — for someone who missed the window. Never opens a settled match. Auto-expires; turn it off once they've voted.</p>
+        <div class="announce-row">
+          <button class="btn" id="grace-btn" onclick="toggleGrace()">Enable late voting (30 min)</button>
+          <span id="grace-status" class="muted"></span>
+        </div>
+      </div>
+
       <div class="section-title">Voting — open &amp; upcoming matchdays</div>
       <div id="matchdays"></div>
 
@@ -85,6 +94,7 @@
 
   <script>
     const KEY_STORE = "wc_admin_key";
+    let graceActive = false;
     const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     const show = id => document.getElementById(id).classList.remove("hidden");
     const hide = id => document.getElementById(id).classList.add("hidden");
@@ -152,7 +162,42 @@
       }
     }
 
+    function renderGrace(g) {
+      graceActive = !!(g && g.active);
+      const btn = document.getElementById("grace-btn");
+      const st = document.getElementById("grace-status");
+      if (graceActive) {
+        btn.textContent = "Disable late voting";
+        btn.style.background = "#b91c1c";
+        const until = g.until ? new Date(g.until).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+        st.textContent = `ON — voting on kicked-off (unsettled) matches is open until ${until}.`;
+        st.style.color = "#4ade80";
+      } else {
+        btn.textContent = "Enable late voting (30 min)";
+        btn.style.background = "";
+        st.textContent = "Off — normal kickoff lock applies.";
+        st.style.color = "";
+      }
+    }
+
+    async function toggleGrace() {
+      const key = sessionStorage.getItem(KEY_STORE);
+      const enabling = !graceActive;
+      if (enabling && !confirm("Open late voting for 30 minutes?\n\nAnyone will be able to vote on matches that have already kicked off (but not settled ones). Turn it off once they've voted.")) return;
+      try {
+        const resp = await fetch("/admin/grace", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Admin-Key": key },
+          body: JSON.stringify({ enabled: enabling, minutes: 30 }),
+        });
+        if (resp.status === 403) { alert("Invalid admin key."); return; }
+        renderGrace(await resp.json());
+        load();  // refresh — affected matchdays may now show as open
+      } catch (e) { alert("Failed: " + e.message); }
+    }
+
     function render(d) {
+      renderGrace(d.grace);
       const players = d.players || [];
       const mds = d.matchdays || [];
       const open = mds.filter(m => m.status === "open");

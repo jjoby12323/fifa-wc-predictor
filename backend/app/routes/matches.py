@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_db
 from app.auth import require_user
 from app.models import Match, Vote, User, MatchStatus, Score, MatchDetail, MatchVoteEntry
+from app import grace
 
 router = APIRouter()
 
@@ -21,11 +22,12 @@ async def whoami(
     return {"username": user.username, "display_name": user.display_name}
 
 
-def _match_status(match: Match, now: datetime) -> str:
+def _match_status(match: Match, now: datetime, grace_on: bool = False) -> str:
     if match.result is not None:
         return "settled"
     if now >= match.kickoff_utc:
-        return "closed"
+        # Normally closed at kickoff — but the admin late-voting window reopens it (until settled).
+        return "open" if grace_on else "closed"
     # Group matches use the fixed 48h polls-open window. Knockout rounds instead unlock the
     # moment their teams are known (i.e. the previous round has concluded), so a whole round
     # becomes votable together — well ahead of kickoff.
@@ -62,9 +64,10 @@ async def get_matches(
     scores_result = await db.execute(select(Score).where(Score.user_id == user.id))
     score_map = {s.match_id: s for s in scores_result.scalars().all()}
 
+    grace_on = grace.is_active()
     out = []
     for m in matches:
-        status = _match_status(m, now)
+        status = _match_status(m, now, grace_on)
         my_vote = vote_map.get(m.id)
         correct = None
         if status == "settled" and my_vote is not None:
@@ -109,7 +112,7 @@ async def get_match_detail(
         raise HTTPException(status_code=404, detail="Match not found.")
 
     now = datetime.now(timezone.utc).replace(tzinfo=None)
-    status = _match_status(match, now)
+    status = _match_status(match, now, grace.is_active())
 
     all_users_result = await db.execute(select(User).order_by(User.display_name))
     all_users = all_users_result.scalars().all()
