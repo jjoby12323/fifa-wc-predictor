@@ -3,15 +3,15 @@ All scoring logic. Pure functions — no DB access. Called from routes/admin.py.
 """
 from typing import NamedTuple
 
-# Group games are worth 1; every knockout round is a flat 2 (no escalation).
+# Group games are worth 1; knockout rounds are a flat 2 — the Final and 3rd-place are worth 4.
 STAGE_MULTIPLIER = {
     "group": 1,
     "r32": 2,
     "r16": 2,
     "qf": 2,
     "sf": 2,
-    "final": 2,
-    "third": 2,
+    "final": 4,
+    "third": 4,
 }
 
 

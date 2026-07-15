@@ -79,6 +79,14 @@
         </div>
       </div>
 
+      <div class="announce-box">
+        <div class="announce-title">⚡ Quick actions</div>
+        <div class="announce-row" style="flex-wrap:wrap">
+          <button class="btn" onclick="syncFixtures()">Refresh fixtures &amp; rankings</button>
+          <span id="action-status" class="muted"></span>
+        </div>
+      </div>
+
       <div class="section-title">Voting — open &amp; upcoming matchdays</div>
       <div id="matchdays"></div>
 
@@ -194,6 +202,19 @@
         renderGrace(await resp.json());
         load();  // refresh — affected matchdays may now show as open
       } catch (e) { alert("Failed: " + e.message); }
+    }
+
+    async function syncFixtures() {
+      const key = sessionStorage.getItem(KEY_STORE);
+      const st = document.getElementById("action-status");
+      st.style.color = ""; st.textContent = "Syncing fixtures & rankings…";
+      try {
+        const resp = await fetch("/admin/sync-fixtures", { method: "POST", headers: { "X-Admin-Key": key } });
+        if (resp.status === 403) { st.textContent = "Invalid admin key."; return; }
+        const d = await resp.json();
+        st.style.color = "#4ade80"; st.textContent = `Synced ${d.synced} fixtures ✅`;
+        load();
+      } catch (e) { st.textContent = "Failed: " + e.message; }
     }
 
     function render(d) {

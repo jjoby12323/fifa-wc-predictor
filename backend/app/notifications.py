@@ -25,7 +25,7 @@ from app import slack
 logger = logging.getLogger(__name__)
 
 IST_OFFSET = timedelta(hours=5, minutes=30)
-REMINDER_HOURS_BEFORE = int(os.getenv("SLACK_REMINDER_HOURS_BEFORE", "3"))
+REMINDER_HOURS_BEFORE = int(os.getenv("SLACK_REMINDER_HOURS_BEFORE", "6"))
 LEADERBOARD_HOUR = int(os.getenv("SLACK_LEADERBOARD_HOUR_IST", "9"))
 LEADERBOARD_TZ = os.getenv("SLACK_LEADERBOARD_TZ", "Asia/Kolkata")
 # A time-triggered event only fires if "now" is within this window past its trigger.
@@ -111,7 +111,8 @@ async def announce_polls_open(db) -> None:
 
 # ── Knockout round opens (whole round unlocks when its teams are known) ─────────
 
-# Voting groups for knockout rounds — the Final and 3rd-place open together.
+# Voting groups for knockout rounds. The Final + 3rd-place open together and get their own
+# message (noting the 4-point stakes); the rest use the generic round-open text.
 KNOCKOUT_ROUNDS = [
     (["qf"], "Quarter-Finals"),
     (["sf"], "Semi-Finals"),
@@ -139,10 +140,17 @@ async def announce_round_open(db) -> None:
         key = f"round_open:{'+'.join(stages)}"
         if await _already_sent(db, key):
             continue
-        ordered = sorted(rms, key=lambda m: m.kickoff_utc)
-        text = slack.build_round_open_text(
-            label, [(m.team_a, m.team_b) for m in ordered], _ist_date_label(first_kick),
-        )
+        if "final" in stages:
+            # The finale gets its own message noting both are worth 4 points (Final listed first).
+            round_labels = {"final": "Final", "third": "3rd place"}
+            fixtures = [(round_labels[st], m.team_a, m.team_b)
+                        for st in ("final", "third") for m in by_stage.get(st, [])]
+            text = slack.build_final_open_text(fixtures)
+        else:
+            ordered = sorted(rms, key=lambda m: m.kickoff_utc)
+            text = slack.build_round_open_text(
+                label, [(m.team_a, m.team_b) for m in ordered], _ist_date_label(first_kick),
+            )
         if await slack.post_to_slack(text):
             await _mark_sent(db, key)
 

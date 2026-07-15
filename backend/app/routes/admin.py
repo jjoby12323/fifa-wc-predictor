@@ -12,7 +12,7 @@ from app.db import get_db
 from app.models import Match, Vote, Score, User, Message, SettleRequest, AnnounceRequest, GraceRequest
 from app.scoring import compute_all_scores, MatchData, VoteData
 from app.slack import post_to_slack, slack_enabled
-from app.fixtures import FD_BASE, parse_fulltime_score, parse_penalty_score, resolve_result
+from app.fixtures import FD_BASE, parse_fulltime_score, parse_penalty_score, resolve_result, sync_fixtures
 from app.sync import _recompute_scores
 from app.routes.matches import _match_status
 from app import grace
@@ -247,6 +247,14 @@ async def list_matches(
         }
         for m in matches
     ]
+
+
+@router.post("/admin/sync-fixtures")
+async def sync_fixtures_now(_=Depends(require_admin)):
+    """Re-pull the WC fixtures now — fills newly-decided knockout teams and applies the latest
+    data/rankings.json (does not settle results; that's the 10-min job)."""
+    n = await sync_fixtures(set_results=False)
+    return {"status": "ok", "synced": n}
 
 
 @router.post("/admin/grace")

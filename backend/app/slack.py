@@ -67,6 +67,17 @@ def build_round_open_text(round_label: str, fixtures: list[tuple[str, str]], fir
     return "\n".join(lines)
 
 
+def build_final_open_text(fixtures: list[tuple[str, str, str]]) -> str:
+    """fixtures: [(round_label, team_a, team_b), ...] for the Final and 3rd-place match."""
+    lines = [
+        ":trophy: *The Final & 3rd-place match are open for voting!*",
+        "Both are worth *4 points* — the biggest calls of the tournament. :fire:",
+    ]
+    lines += [f"   • {rl}: {a} vs {b}" for rl, a, b in fixtures]
+    lines += ["", "Get your picks in before kickoff. :soccer:"]
+    return "\n".join(lines)
+
+
 def build_reminder_text(date_label: str, names: list[str], hours_before: int) -> str:
     people = ", ".join(names)
     return (

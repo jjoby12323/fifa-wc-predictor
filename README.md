@@ -20,12 +20,13 @@ A team prediction game for the 2026 FIFA World Cup. Each person gets a signed pe
 
 ## Scoring
 
-Group games are worth 1 point; every knockout round (Round of 32 onward) is a flat 2:
+Group games are worth 1 point; knockout rounds are a flat 2 — the Final and 3rd-place playoff are worth 4:
 
 | Category | Points |
 |----------|--------|
 | Correct prediction (Group) | 1 |
-| Correct prediction (any knockout round: R32, R16, QF, SF, Final, 3rd) | 2 |
+| Correct prediction (knockout: R32, R16, QF, SF) | 2 |
+| Correct prediction (Final or 3rd place) | 4 |
 | Streak bonus (3 in a row — draws are skipped, not broken) | +1 |
 | Perfect matchday (all decisive matches called, 2+ matches) | +2 |
 | Participation (every 3 matches voted on) | +1 |
@@ -71,7 +72,7 @@ ALLOWED_ORIGINS=*
 SLACK_WEBHOOK_URL=
 
 # Optional Slack tuning (defaults shown):
-# SLACK_REMINDER_HOURS_BEFORE=3       # hours before a matchday's first kickoff to nudge non-voters
+# SLACK_REMINDER_HOURS_BEFORE=6       # hours before a matchday's first kickoff to nudge non-voters
 # SLACK_LEADERBOARD_HOUR_IST=9        # daily standings post — hour of day in SLACK_LEADERBOARD_TZ
 # SLACK_LEADERBOARD_TZ=Asia/Kolkata   # timezone for the daily post (IANA name)
 
