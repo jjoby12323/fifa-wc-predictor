@@ -111,6 +111,40 @@ def build_result_text(team_a: str, team_b: str, result: str,
     return f":soccer: Full time: *{winner}* beat {loser} *{win_goals}–{lose_goals}*."
 
 
+def build_wrapup_text(champion: str, runner_up: str, third_place: str | None,
+                      podium: list[dict]) -> str:
+    """One-time closing message: World Cup champion + Predictor podium + a thank-you.
+
+    podium: [{'rank': int, 'name': str, 'total': float}, ...] — already ranked, top few.
+    """
+    third_clause = f", and *{third_place}* took 3rd place" if third_place else ""
+    lines = [
+        ":trophy: *That's a wrap — FIFA World Cup 2026 is in the books!* :trophy:",
+        "",
+        f":soccer: *World Champions: {champion}* — they beat {runner_up} in the final{third_clause}.",
+        "",
+        "And now for the calls that mattered most around here — your Predictor podium :point_down:",
+    ]
+    medals = {1: ":first_place_medal:", 2: ":second_place_medal:", 3: ":third_place_medal:"}
+    for e in podium:
+        pts = e["total"]
+        prefix = medals.get(e["rank"], f"`{e['rank']}.`")
+        lines.append(f"{prefix}  *{e['name']}* — {pts:g} pt{'s' if pts != 1 else ''}")
+    lines += [
+        "",
+        "Take a bow, top three. :bow:",
+        "",
+        "Huge thanks to *everyone* who played — every pick, every upset shout, and every bit of "
+        "trash talk made the last month a blast. Whether you topped the table or just turned up to "
+        "back the underdogs, thank you for playing. :heart:",
+    ]
+    link = _leaderboard_link()
+    if link:
+        lines += ["", f"<{link}|Final standings →>"]
+    lines += ["", "Until the next one — same chaos, fresh bracket. :wave:"]
+    return "\n".join(lines)
+
+
 def build_leaderboard_text(entries: list[dict], title: str = "Standings") -> str:
     """entries: [{'rank': int, 'name': str, 'total': int}, ...] (already ranked)."""
     if not entries or all(e["total"] == 0 for e in entries):

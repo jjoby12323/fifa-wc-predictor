@@ -189,6 +189,9 @@ When `SLACK_WEBHOOK_URL` is unset, all Slack code is a no-op — the app runs id
 - **Vote reminder** — `SLACK_REMINDER_HOURS_BEFORE` hours before kickoff, listing who hasn't picked
 - **Match results** — as each match auto-settles (flags upsets)
 - **Daily leaderboard** — every day at `SLACK_LEADERBOARD_HOUR_IST`
+- **Tournament wrap-up** — a one-time closing message posted when the Final is decided: World Cup champion, the top-3 Predictor podium, and a thank-you
+
+Recurring posts (reminders, polls-open pings, daily leaderboard) stop automatically once the Final has a result — the wrap-up above is the last automatic message, so the channel goes quiet when the cup is won. Manual `/admin/announce` posts always go through.
 
 Requires running `alembic upgrade head` (adds the `sent_notifications` table) — see below.
 

@@ -36,6 +36,22 @@ ANNOUNCE_WINDOW = timedelta(minutes=60)
 _primed = False
 
 
+async def tournament_over(db) -> bool:
+    """True once the Final has a decided result.
+
+    Recurring automated posts (vote reminders, polls-open / round-open pings, and the
+    daily leaderboard) stop firing after this flips — no need to touch a config flag when
+    the cup is won. Two things still go out around this moment: the Final's own result
+    (posted inline by the result-sync job as it settles) and, on the next tick, the
+    one-time wrap-up (announce_tournament_wrapup). The wrap-up is the last automated
+    message; everything after it stays quiet.
+    """
+    finals = (await db.execute(
+        select(Match.result).where(Match.stage == "final")
+    )).scalars().all()
+    return any(r in ("team_a", "team_b") for r in finals)
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
@@ -232,12 +248,53 @@ async def post_daily_leaderboard(db) -> None:
     await slack.post_to_slack(text)
 
 
+# ── Tournament wrap-up (posted once when the Final is decided) ────────────────────
+
+async def announce_tournament_wrapup(db) -> None:
+    """The closing message — World Cup champion + Predictor podium + a thank-you.
+
+    Fires the first time the Final is decided (same trigger as tournament_over) and,
+    like every other announcement, is recorded in the ledger so it's posted exactly once.
+    This is the last automated message the channel ever gets.
+    """
+    key = "tournament:wrapup"
+    if await _already_sent(db, key):
+        return
+
+    final = (await db.execute(
+        select(Match).where(Match.stage == "final", Match.result.in_(("team_a", "team_b")))
+    )).scalars().first()
+    if final is None:
+        return  # Final not decided yet — nothing to wrap up
+    champion, runner_up = (
+        (final.team_a, final.team_b) if final.result == "team_a" else (final.team_b, final.team_a)
+    )
+
+    third = (await db.execute(
+        select(Match).where(Match.stage == "third", Match.result.in_(("team_a", "team_b")))
+    )).scalars().first()
+    third_place = None
+    if third is not None:
+        third_place = third.team_a if third.result == "team_a" else third.team_b
+
+    podium = (await _leaderboard_entries(db))[:3]
+    text = slack.build_wrapup_text(champion, runner_up, third_place, podium)
+    if await slack.post_to_slack(text):
+        await _mark_sent(db, key)
+
+
 # ── Scheduler entry points (sync wrappers run in BackgroundScheduler threads) ────
 
 async def _notifications_tick() -> None:
     global _primed
     async with SessionLocal() as db:
         try:
+            if await tournament_over(db):
+                # Cup's won: post the one-time wrap-up (if not already sent), then go quiet —
+                # no more reminders or polls-open pings.
+                await announce_tournament_wrapup(db)
+                await db.commit()
+                return
             if not _primed:
                 await prime_sent_notifications(db)
                 await db.commit()
@@ -258,6 +315,8 @@ async def _notifications_tick() -> None:
 async def _daily_leaderboard() -> None:
     async with SessionLocal() as db:
         try:
+            if await tournament_over(db):
+                return  # cup's won — stop the daily standings post
             await post_daily_leaderboard(db)
         except Exception:
             logger.exception("Slack daily leaderboard failed")
